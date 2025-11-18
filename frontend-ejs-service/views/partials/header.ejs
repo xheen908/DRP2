@@ -1,0 +1,42 @@
+<!-- DRP/drp_backend/views/partials/header.ejs -->
+<!-- <link rel="stylesheet" href="/public/css/custom.css"> --><!-- ENTFERNT, da Tailwind CSS genutzt wird -->
+<header>
+    <div class="app-title">DRP Dashboard</div>
+    <div class="burger-menu" id="burgerMenu">☰</div>
+    <div class="dropdown-menu" id="dropdownMenu">
+        <a href="/dashboard">Dashboard</a>
+        <% if (user && (user.roles.includes('Manager') || user.roles.includes('Admin') || user.roles.includes('Disponent'))) { %>
+            <a href="/admin/clients">Kundenverwaltung</a>
+            <a href="/admin/locations">Einsatzortverwaltung</a>
+        <% } %>
+        <% if (user && (user.roles.includes('Manager') || user.roles.includes('Disponent'))) { %>
+            <a href="/admin/jobs">Jobverwaltung</a>
+        <% } %>
+        <% if (user && user.roles.includes('Manager')) { %>
+            <a href="/admin/users">Mitarbeiter Verwaltung</a>
+        <% } %>
+        <button onclick="logout()">Abmelden</button>
+    </div>
+</header>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const burgerMenuPartial = document.getElementById('burgerMenu');
+        const dropdownMenuPartial = document.getElementById('dropdownMenu');
+        
+        if (burgerMenuPartial && dropdownMenuPartial) {
+            burgerMenuPartial.addEventListener('click', (event) => {
+                dropdownMenuPartial.classList.toggle('show');
+                event.stopPropagation();
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!dropdownMenuPartial.contains(event.target) && !burgerMenuPartial.contains(event.target)) {
+                    dropdownMenuPartial.classList.remove('show');
+                }
+            });
+        } else {
+            console.warn("Burger-Menü oder Dropdown-Menü-Elemente im Partial nicht gefunden. Burger-Menü-Funktionalität deaktiviert.");
+        }
+    });
+</script>

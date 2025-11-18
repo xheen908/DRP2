@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRP Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.34/moment-timezone-with-data-10-year-range.min.js"></script>
+    <style>
+        /* CSS für den Header wird hier belassen, da es global ist */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1000;
+        }
+        .app-title {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .burger-menu {
+            font-size: 2em;
+            cursor: pointer;
+            padding: 5px;
+            user-select: none;
+        }
+        header .dropdown-menu { /* Spezifische Regel für das Dropdown im Header */
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: #444;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 999;
+            border-radius: 0 0 5px 5px;
+            overflow: hidden;
+        }
+        header .dropdown-menu.show {
+            display: block;
+        }
+        .dropdown-menu button {
+            color: white;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 0;
+            border-radius: 0;
+        }
+        .dropdown-menu button:hover {
+            background-color: #575757;
+        }
+        .dropdown-menu a { /* Auch für Links im Menü */
+            color: white;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 0;
+            border-radius: 0;
+        }
+        .dropdown-menu a:hover {
+            background-color: #575757;
+        }
+
+        .dashboard-container {
+            background-color: #fff;
+            padding: 30px;
+            margin: 20px auto; /* Behält 20px horizontalen Abstand */
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-bottom: 20px; }
+        p { color: #666; }
+
+        /* Zusätzliche Stile für Tabellen (falls noch nötig für andere Teile des Dashboards) */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        /* ENTFENT: tr:hover Stil */
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: white;
+            display: inline-block;
+        }
+        .bg-orange-500 { background-color: #f97316; }
+        .bg-blue-500 { background-color: #3b82f6; }
+        .bg-green-500 { background-color: #22c55e; }
+        .bg-emerald-500 { background-color: #10b981; }
+        .bg-red-500 { background-color: #ef4444; }
+        .bg-yellow-500 { background-color: #eab308; }
+        .bg-gray-500 { background-color: #6b7280; }
+
+        /* NEUE STILE FÜR MODAL (aus location_management.ejs übernommen) */
+        .modal {
+            display: none; /* Standardmäßig versteckt */
+            position: fixed; /* Bleibt über allem */
+            z-index: 1000; /* Ganz vorne */
+            left: 0;
+            top: 0;
+            width: 100%; /* Volle Breite */
+            height: 100%; /* Volle Höhe */
+            overflow: auto; /* Scrollbar, wenn nötig */
+            background-color: rgba(0,0,0,0.4); /* Dunkler Hintergrund */
+            align-items: center; /* Zentriert vertikal */
+            justify-content: center; /* Zentriert horizontal */
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        #map-modal .modal-content {
+            max-width: 900px;
+        }
+        /* Spezielles Styling für das Barcode-Modal */
+        #barcode-modal .modal-content {
+            max-width: 400px; /* Kleinere Breite für Barcode */
+            text-align: center;
+        }
+        /* NEU: Zentrierung des SVG-Barcodes innerhalb des Modals */
+        #barcode-modal .modal-content svg {
+            display: block; /* Ermöglicht margin: auto */
+            margin: 0 auto; /* Zentriert das SVG horizontal */
+        }
+        /* Spezielles Styling für das Job-Formular-Modal */
+        #job-form-modal .modal-content {
+            max-width: 483px; /* An Jobverwaltung angepasst (420px * 1.15) */
+            padding: 15px; /* Etwas weniger Padding */
+        }
+        #job-form-modal .modal-content h3 {
+            font-size: 1.25rem; /* Titel etwas kleiner */
+            margin-bottom: 1rem;
+        }
+        #job-form-modal .modal-content label {
+            font-size: 0.8rem; /* Labels noch etwas kleiner als text-sm */
+        }
+        #job-form-modal .modal-content input,
+        #job-form-modal .modal-content select,
+        #job-form-modal .modal-content textarea {
+            font-size: 0.9rem; /* Input-Felder etwas kleiner */
+            padding: 0.375rem 0.5rem; /* Weniger Padding für Inputs */
+        }
+        /* NEU: Spezielles Styling für das größere Street View-Modal */
+        #street-view-modal .modal-content {
+            max-width: 900px;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            top: 10px;
+            right: 20px;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .clickable-cell {
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-color: #2563eb;
+            text-underline-offset: 2px;
+        }
+        .clickable-cell:hover {
+            text-decoration-color: #1e40af;
+        }
+
+        /* HÖHEPUNKT-STILE FÜR TABELLENZEILEN */
+        .highlight-upcoming {
+            background-color: #d4edda; /* Helles Grün für bevorstehende Jobs */
+        }
+        .highlight-upcoming:hover {
+            background-color: #d4edda; /* Behält die Farbe beim Hover */
+        }
+        .highlight-overdue {
+            background-color: #f8d7da; /* Helles Rot für überfällige Jobs */
+        }
+        .highlight-overdue:hover {
+            background-color: #f8d7da; /* Behält die Farbe beim Hover */
+        }
+        .fade-past {
+            opacity: 0.75; /* 25% ausgeblendet */
+        }
+        .fade-past:hover {
+            opacity: 0.75; /* Behält die Opazität beim Hover */
+        }
+        .message { padding: 0.75rem; border-radius: 0.25rem; border-width: 1px; margin-top: 1rem;}
+        .bg-red-100 { background-color: #fee2e2; }
+        .text-red-800 { color: #991b1b; }
+        .border-red-300 { border-color: #fca5a5; }
+        .bg-green-100 { background-color: #dcfce7; }
+        .text-green-800 { color: #166534; }
+        .border-green-300 { border-color: #86efac; }
+        .hidden { display: none; }
+        .space-y-4 > *:not(:last-child) { margin-bottom: 1rem; }
+        .block { display: block; }
+        .w-full { width: 100%; }
+        .p-2 { padding: 0.5rem; }
+        .border { border-width: 1px; }
+        .border-gray-300 { border-color: #d1d5db; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .text-gray-700 { color: #374151; }
+        .flex { display: flex; }
+        .justify-end { justify-content: flex-end; }
+        .space-x-2 > *:not(:first-child) { margin-left: 0.5rem; }
+        .bg-gray-300 { background-color: #d1d5db; }
+        .hover\:bg-gray-400:hover { background-color: #9ca3af; }
+        .bg-blue-500 { background-color: #3b82f6; }
+        .hover\:bg-blue-600:hover { background-color: #2563eb; }
+    </style>
+</head>
+<body>
+    <%- include('./partials/header.ejs') %>
+
+    <div class="max-w-full mx-auto py-4 space-y-4">
+        <div class="dashboard-container">
+            <h1 class="text-2xl font-bold text-gray-800">Willkommen im DRP Dashboard</h1>
+            <% if (user) { %>
+                <p class="text-lg text-gray-700">Angemeldet als: <span class="font-semibold"><%= user.username %></span> (Rolle: <span class="font-semibold"><%= user.roles.join(', ') %></span>)</p>
+                <p class="text-sm text-gray-600">UserID: <%= user.id %></p>
+                <p class="text-sm text-gray-600">Zeiterfassung erforderlich: <%= user.isTimeTrackerRequired ? 'Ja' : 'Nein' %></p>
+            <% } else { %>
+                <p class="text-lg text-gray-700">Sie sind nicht angemeldet.</p>
+            <% } %>
+        </div>
+
+        <!-- Angepasster Bereich für Job-Übersicht mit Tabelle -->
+        <div class="dashboard-container">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">
+                <% if (user && (user.roles.includes('Manager') || user.roles.includes('Admin') || user.roles.includes('Disponent'))) { %>
+                    Aktuelle Job-Übersicht
+                <% } else { %>
+                    Meine Jobs
+                <% } %>
+            </h2>
+            <div id="jobsOverviewList" class="overflow-x-auto">
+                <p class="text-center text-gray-500 py-4">Lade Jobs...</p>
+            </div>
+        </div>
+
+        <!-- Karten-Modal -->
+        <div id="map-modal" class="modal">
+            <div class="modal-content" id="map-modal-content">
+                <span class="close-button" onclick="closeMapModal()">×</span>
+                <h3 id="map-modal-title">Einsatzort auf Karte</h3>
+                <div id="map-container" style="height: 500px; width: 100%; margin-top: 10px;">
+                    Karte wird geladen...
+                </div>
+            </div>
+        </div>
+
+        <!-- Barcode Modal -->
+        <div id="barcode-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-button" onclick="closeBarcodeModal()">×</span>
+                <h3 id="barcode-modal-title">NFC Tag Barcode (Code 128)</h3>
+                <svg id="barcode-svg"></svg>
+                <p class="mt-2 text-sm text-gray-600">Barcode für: <span id="barcode-value" class="font-semibold text-gray-800"></span></p>
+            </div>
+        </div>
+
+        <!-- NEU: Street View Modal -->
+        <div id="street-view-modal" class="modal">
+            <div class="modal-content" id="street-view-modal-content">
+                <span class="close-button" onclick="closeStreetViewModal()">×</span>
+                <h3 id="street-view-modal-title">Street View für Einsatzort</h3>
+                <div id="street-view-container" style="height: 500px; width: 100%; margin-top: 10px;">
+                    Street View wird geladen...
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal für Job erstellen/bearbeiten (aus job_management.ejs übernommen) -->
+        <div id="job-form-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-button" onclick="cancelJobForm()">×</span>
+                <h3 id="modal-title">Job hinzufügen</h3>
+                <form id="job-form" class="space-y-4">
+                    <input type="hidden" id="job-id">
+
+                    <div>
+                        <label for="jobNumber" class="block text-sm font-medium text-gray-700">Job-Nummer</label>
+                        <input type="text" id="jobNumber" name="job_number" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+
+                    <div>
+                        <label for="jobTitle" class="block text-sm font-medium text-gray-700">Titel des Auftrags</label>
+                        <input type="text" id="jobTitle" name="title" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="jobDescription" class="block text-sm font-medium text-gray-700">Beschreibung</label>
+                        <textarea id="jobDescription" name="description" rows="3" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></textarea>
+                    </div>
+
+                    <div>
+                        <label for="clientId" class="block text-sm font-medium text-gray-700">Kunde</label>
+                        <select id="clientId" name="client_id" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                            <!-- Kunden werden dynamisch geladen -->
+                        </select>
+                    </div>
+                    <div>
+                        <label for="locationId" class="block text-sm font-medium text-gray-700">Einsatzort</label>
+                        <select id="locationId" name="location_id" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                            <!-- Einsatzorte werden dynamisch basierend auf dem Kunden geladen -->
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="assignedUserId" class="block text-sm font-medium text-gray-700">Zugewiesen an</label>
+                        <select id="assignedUserId" name="assigned_user_id" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                            <!-- Benutzer werden dynamisch geladen -->
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="plannedStartTime" class="block text-sm font-medium text-gray-700">Geplanter Start</label>
+                        <input type="datetime-local" id="plannedStartTime" name="start_time" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="plannedEndTime" class="block text-sm font-medium text-gray-700">Geplantes Ende</label>
+                        <input type="datetime-local" id="plannedEndTime" name="end_time" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+
+                    <div id="statusGroup" class="hidden">
+                        <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+                        <select id="status" name="status" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></select>
+                    </div>
+
+                    <div id="form-status-message" class="hidden message"></div>
+                    <div class="flex justify-end space-x-2 mt-4">
+                        <button type="button" id="cancel-job-form" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Abbrechen</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JsBarcode Bibliothek über CDN einbinden -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.3/JsBarcode.all.min.js"></script>
+    <script>
+        const loggedInUser = <%- JSON.stringify(user) %>;
+        const jobsOverviewList = document.getElementById('jobsOverviewList');
+
+        // ACHTUNG: ERSETZE 'DEIN_GOOGLE_MAPS_API_KEY' DURCH DEINEN ECHTEN SCHLÜSSEL
+        const GOOGLE_MAPS_API_KEY = 'AIzaSyAhh74e_kR6pwL8qBA4FzV-3dNIVhevx4g';
+
+        // Referenzen für das Karten-Modal
+        const mapModal = document.getElementById('map-modal');
+        const mapModalTitle = document.getElementById('map-modal-title');
+        const mapContainer = document.getElementById('map-container');
+
+        // Referenzen für das Barcode-Modal
+        const barcodeModal = document.getElementById('barcode-modal');
+        const barcodeModalTitle = document.getElementById('barcode-modal-title');
+        const barcodeSvg = document.getElementById('barcode-svg');
+        const barcodeValueSpan = document.getElementById('barcode-value');
+
+        // NEU: Referenzen für das Street View Modal
+        const streetViewModal = document.getElementById('street-view-modal');
+        const streetViewModalTitle = document.getElementById('street-view-modal-title');
+        const streetViewContainer = document.getElementById('street-view-container');
+
+
+        // Referenzen für Job-Formular-Modal (aus job_management.ejs übernommen)
+        let allJobs = []; // um Jobs für das Bearbeiten zu finden
+        let allUsers = [];
+        let allClients = [];
+        let allLocations = [];
+        let possibleJobStatuses = [];
+        let currentEditingJobId = null;
+
+        const jobFormModal = document.getElementById('job-form-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const jobForm = document.getElementById('job-form');
+        const jobIdInput = document.getElementById('job-id');
+        const jobNumberInput = document.getElementById('jobNumber');
+        const jobTitleInput = document.getElementById('jobTitle');
+        const jobDescriptionInput = document.getElementById('jobDescription');
+        const clientIdSelect = document.getElementById('clientId');
+        const locationIdSelect = document.getElementById('locationId');
+        const assignedUserIdSelect = document.getElementById('assignedUserId');
+        const plannedStartTimeInput = document.getElementById('plannedStartTime');
+        const plannedEndTimeInput = document.getElementById('plannedEndTime');
+        const statusSelect = document.getElementById('status');
+        const statusGroup = document.getElementById('statusGroup');
+        const cancelJobFormButton = document.getElementById('cancel-job-form');
+        const formStatusMessage = document.getElementById('form-status-message');
+
+
+        function getAuthHeader() {
+            if (!loggedInUser || !loggedInUser.id) { // Verwende loggedInUser.id
+                console.warn("Nicht angemeldet oder Benutzerdaten unvollständig. Kein Autorisierungs-Header gesendet.");
+                return {};
+            }
+            const jwtCookie = document.cookie.split('; ').find(row => row.startsWith('jwt='));
+            if (jwtCookie) {
+                const token = jwtCookie.split('=')[1];
+                return { 'Authorization': `Bearer ${token}` };
+            }
+            console.warn("JWT-Cookie nicht gefunden. Kein Autorisierungs-Header gesendet.");
+            return {};
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    window.location.href = '/';
+                } else {
+                    const errorData = await response.json();
+                    alert('Fehler beim Abmelden: ' + (errorData.message || 'Unbekannter Fehler'));
+                    console.error('Logout-Fehler-Antwort:', errorData);
+                }
+            } catch (error) {
+                console.error('Fehler beim Abmelden:', error);
+                alert('Netzwerkfehler beim Abmelden. Bitte versuchen Sie es erneut.');
+            }
+        }
+
+        async function fetchJobsOverview() {
+            jobsOverviewList.innerHTML = '<p class="text-center text-gray-500 py-4">Lade Jobs...</p>';
+            let apiUrl = '/api/jobs';
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader()
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/';
+                        return;
+                    }
+                    const errorData = await response.json();
+                    jobsOverviewList.innerHTML = `<p class="text-center text-red-500 py-4">Fehler beim Laden der Jobs: ${errorData.message || 'Unbekannter Fehler'}</p>`;
+                    console.error('Fehler beim Abrufen der Jobs für die Übersicht:', errorData);
+                    return;
+                }
+                allJobs = await response.json(); // Jobs global speichern
+                renderJobsOverview(allJobs);
+            } catch (error) {
+                jobsOverviewList.innerHTML = `<p class="text-center text-red-500 py-4">Netzwerkfehler beim Laden der Jobs.</p>`;
+                console.error('Netzwerkfehler beim Abrufen der Jobs für die Übersicht:', error);
+            }
+        }
+
+        function getStatusBadgeClass(status) {
+            switch (status) {
+                case 'PENDING': return 'bg-red-500';
+                case 'ASSIGNED': return 'bg-blue-500';
+                case 'IN_PROGRESS': return 'bg-yellow-500';
+                case 'COMPLETED': return 'bg-emerald-500';
+                case 'CANCELLED': return 'bg-red-500';
+                case 'ON_HOLD': return 'bg-yellow-500';
+                default: return 'bg-gray-500';
+            }
+        }
+
+        function renderJobsOverview(jobs) {
+            if (jobs.length === 0) {
+                jobsOverviewList.innerHTML = '<p class="text-center text-gray-600 py-4">Keine Jobs gefunden.</p>';
+                return;
+            }
+
+            // Aktuellen Zeitpunkt in der lokalen Zeitzone (Europe/Berlin) erhalten
+            const now = moment().tz('Europe/Berlin');
+
+            const getJobCategory = (job) => {
+                // job.planned_start_time direkt als Berlin-Zeit parsen
+                // Da die DB anscheinend lokale Zeiten ohne Zeitzonen-Info speichert,
+                // parsen wir direkt in 'Europe/Berlin'.
+                const startDate = job.planned_start_time ? moment.tz(job.planned_start_time, 'YYYY-MM-DD HH:mm:ss', 'Europe/Berlin') : null;
+                if (!startDate) return 'normal';
+
+                if (startDate.isAfter(now) && job.status === 'COMPLETED') {
+                    return 'future-completed';
+                } else if (startDate.isAfter(now)) {
+                    return 'upcoming';
+                } else if (job.status !== 'COMPLETED' && startDate.isSameOrBefore(now)) {
+                    return 'overdue';
+                } else if (job.status === 'COMPLETED' && startDate.isBefore(now)) {
+                    return 'past-completed';
+                }
+                return 'normal';
+            };
+
+            jobs.sort((a, b) => {
+                const aCategory = getJobCategory(a);
+                const bCategory = getJobCategory(b);
+
+                const categoryOrder = {
+                    'overdue': 1,
+                    'upcoming': 2,
+                    'normal': 3,
+                    'past-completed': 4,
+                    'future-completed': 5
+                };
+
+                const aOrder = categoryOrder[aCategory];
+                const bOrder = categoryOrder[bCategory];
+
+                if (aOrder !== bOrder) {
+                    return aOrder - bOrder;
+                }
+
+                const aStartDate = a.planned_start_time ? moment.tz(a.planned_start_time, 'YYYY-MM-DD HH:mm:ss', 'Europe/Berlin') : null;
+                const bStartDate = b.planned_start_time ? moment.tz(b.planned_start_time, 'YYYY-MM-DD HH:mm:ss', 'Europe/Berlin') : null;
+
+                if (aStartDate && bStartDate) {
+                    return aStartDate.diff(bStartDate);
+                }
+                if (aStartDate) return -1;
+                if (bStartDate) return 1;
+                return 0;
+            });
+
+
+            let tableHtml = `
+                <table class="min-w-full bg-white border-collapse shadow-sm rounded-lg">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Geplanter Start</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Job-Nr.</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Titel</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Status</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Zugewiesen an</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Einsatzort</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">GPS (Lat/Lon)</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">NFC Tag ID</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            jobs.forEach(job => {
+                // job.planned_start_time direkt als Berlin-Zeit parsen
+                const startDate = job.planned_start_time ? moment.tz(job.planned_start_time, 'YYYY-MM-DD HH:mm:ss', 'Europe/Berlin') : null;
+                const formattedStartTime = startDate ? startDate.format('DD.MM.YYYY HH:mm') : '-';
+
+                let assignedUserNameDisplay = job.assigned_to_username || 'Nicht zugewiesen';
+                // Benutzernamen klickbar machen, wenn eine PIN vorhanden ist
+                if (job.assigned_to_user_pin) {
+                    assignedUserNameDisplay = `<span class="text-blue-600 hover:text-blue-800 clickable-cell" onclick="openUserPinBarcodeModal('${job.assigned_to_user_pin}', '${job.assigned_to_username}')">${job.assigned_to_username}</span>`;
+                }
+
+                let locationDetailsDisplay = 'Unbekannt';
+                if (job.location_name && job.location_address) {
+                    // Adresse öffnet Street View Modal
+                    locationDetailsDisplay = `<span class="text-blue-600 hover:text-blue-800 clickable-cell" onclick="openStreetViewModalByAddress('${job.location_address}', '${job.location_name}')">${job.location_name} (${job.location_address})</span>`;
+                } else if (job.location_name) {
+                    locationDetailsDisplay = job.location_name;
+                } else if (job.location_address) {
+                    // Adresse öffnet Street View Modal
+                    locationDetailsDisplay = `<span class="text-blue-600 hover:text-blue-800 clickable-cell" onclick="openStreetViewModalByAddress('${job.location_address}', 'Einsatzort')">${job.location_address}</span>`;
+                }
+
+                // NEU: GPS-Koordinaten Spalte
+                const lat = job.location_latitude !== null && !isNaN(parseFloat(job.location_latitude)) ? parseFloat(job.location_latitude).toFixed(6) : null;
+                const lon = job.location_longitude !== null && !isNaN(parseFloat(job.location_longitude)) ? parseFloat(job.location_longitude).toFixed(6) : null;
+
+                let gpsDisplay;
+                if (lat !== null && lon !== null) {
+                    gpsDisplay = `<span class="text-blue-600 hover:text-blue-800 clickable-cell" onclick="openMapModalByCoords('${job.location_name || 'Einsatzort'}', ${lat}, ${lon})">${lat} / ${lon}</span>`;
+                } else {
+                    gpsDisplay = '- / -';
+                }
+
+                const nfcTagIdDisplay = job.location_nfc_tag_id ? `<span class="text-blue-600 hover:text-blue-800 clickable-cell" onclick="openBarcodeModal('${job.location_nfc_tag_id}', '${job.location_name || 'Einsatzort'}')">${job.location_nfc_tag_id}</span>` : '-';
+
+
+                let rowHighlightClass = '';
+                const jobCategory = getJobCategory(job);
+                if (jobCategory === 'upcoming') {
+                    rowHighlightClass = 'highlight-upcoming';
+                } else if (jobCategory === 'overdue') {
+                    rowHighlightClass = 'highlight-overdue';
+                } else if (jobCategory === 'past-completed' || jobCategory === 'future-completed') {
+                    rowHighlightClass = 'fade-past';
+                }
+
+
+                tableHtml += `
+                    <tr class="${rowHighlightClass}">
+                        <td class="py-2 px-4 border-b text-sm font-semibold text-gray-800">${formattedStartTime}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${job.job_number}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${job.title}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">
+                            <span class="status-badge ${getStatusBadgeClass(job.status)}">${job.status}</span>
+                        </td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${assignedUserNameDisplay}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${locationDetailsDisplay}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${gpsDisplay}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${nfcTagIdDisplay}</td>
+                        <td class="py-2 px-4 border-b text-sm">
+                            <button class="text-blue-600 hover:text-blue-800 font-medium" onclick="openEditJobModal(${job.id})">Ansehen/Bearbeiten</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tableHtml += `
+                    </tbody>
+                </table>
+            `;
+            jobsOverviewList.innerHTML = tableHtml;
+        }
+
+        // MAP MODAL FUNKTIONEN
+        function closeMapModal() {
+            mapModal.style.display = 'none';
+            mapContainer.innerHTML = 'Karte wird geladen...';
+        }
+
+        // NEU: Öffnet das Modal und zeigt die Karte anhand der Koordinaten an
+        function openMapModalByCoords(locationName, lat, lon) {
+             if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'DEIN_GOOGLE_MAPS_API_KEY') {
+                 alert('FEHLER: Bitte den Google Maps API Key in der JavaScript-Datei setzen!');
+                 return;
+            }
+            mapModalTitle.textContent = `Karte für ${locationName} (GPS)`;
+
+            // Google Maps Embed URL mit den Koordinaten
+            const embedUrl = `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${lat},${lon}&zoom=17`;
+
+            mapContainer.innerHTML = `
+                <iframe
+                    width="100%"
+                    height="500"
+                    frameborder="0" style="border:0"
+                    src="${embedUrl}"
+                    allowfullscreen>
+                </iframe>
+            `;
+            mapModal.style.display = 'flex';
+        }
+        // ENDE MAP MODAL FUNKTIONEN
+
+        // BARCODE MODAL FUNKTIONEN (für NFC Tags)
+        function closeBarcodeModal() {
+            barcodeModal.style.display = 'none';
+            barcodeSvg.innerHTML = '';
+            barcodeValueSpan.textContent = '';
+        }
+
+        function openBarcodeModal(nfcTagId, locationName) {
+            barcodeModalTitle.textContent = `NFC Tag Barcode für ${locationName}`;
+            barcodeValueSpan.textContent = nfcTagId;
+
+            JsBarcode("#barcode-svg", nfcTagId, {
+                format: "CODE128",
+                displayValue: true,
+                height: 100,
+                width: 2,
+                margin: 10
+            });
+
+            barcodeModal.style.display = 'flex';
+        }
+        // ENDE BARCODE MODAL FUNKTIONEN
+
+        // NEU: BARCODE MODAL FUNKTIONEN (für Benutzer-PIN)
+        function openUserPinBarcodeModal(pin, userName) {
+            barcodeModalTitle.textContent = `PIN Barcode für ${userName}`;
+            barcodeValueSpan.textContent = pin;
+
+            barcodeSvg.innerHTML = ''; // Sicherstellen, dass die SVG sauber ist
+
+            JsBarcode("#barcode-svg", pin, {
+                format: "CODE128",
+                displayValue: true,
+                fontSize: 24,
+                width: 2,
+                height: 100,
+                margin: 10
+            });
+            barcodeModal.style.display = 'flex';
+        }
+        // ENDE NEU: BARCODE MODAL FUNKTIONEN (für Benutzer-PIN)
+
+        // NEU: STREET VIEW MODAL FUNKTIONEN
+        function closeStreetViewModal() {
+            streetViewModal.style.display = 'none';
+            streetViewContainer.innerHTML = 'Street View wird geladen...'; // Inhalt zurücksetzen
+        }
+
+        // Öffnet das Modal und zeigt die Street View anhand der Adresse an
+        function openStreetViewModalByAddress(address, locationName) {
+            if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'DEIN_GOOGLE_MAPS_API_KEY') {
+                 alert('FEHLER: Bitte den Google Maps API Key in der JavaScript-Datei setzen!');
+                 return;
+            }
+            streetViewModalTitle.textContent = `Street View für ${locationName}`;
+
+            // Die URL für die Street View Static API
+            const encodedAddress = encodeURIComponent(address);
+            const streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?size=900x500&location=${encodedAddress}&fov=90&heading=90&pitch=0&key=${GOOGLE_MAPS_API_KEY}`;
+
+            streetViewContainer.innerHTML = `
+                <img src="${streetViewUrl}" alt="Street View von ${address}" style="width: 100%; height: 100%; object-fit: cover;">
+            `;
+            streetViewModal.style.display = 'flex';
+        }
+        // ENDE NEU: STREET VIEW MODAL FUNKTIONEN
+
+
+        // JOB FORMULAR MODAL FUNKTIONEN (aus job_management.ejs übernommen)
+
+        async function fetchUsersForAssignment() {
+            try {
+                const response = await fetch('/api/jobs/users-for-assignment', {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader()
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/';
+                        return;
+                    }
+                    throw new Error('Fehler beim Abrufen der Benutzer für die Zuweisung');
+                }
+                allUsers = await response.json();
+                renderAssignedUserOptions();
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Benutzer für die Zuweisung:', error);
+                showFormStatusMessage('Fehler beim Laden der Benutzer für Zuweisung: ' + error.message, true);
+            }
+        }
+
+        function renderAssignedUserOptions() {
+            assignedUserIdSelect.innerHTML = '<option value="">Nicht zugewiesen</option>';
+            allUsers.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = `${user.full_name} (${user.role_name})`;
+                assignedUserIdSelect.appendChild(option);
+            });
+        }
+
+        async function fetchClientsForDropdown() {
+            try {
+                const response = await fetch('/api/clients', {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader()
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/';
+                        return;
+                    }
+                    throw new Error('Fehler beim Laden der Kunden für Dropdown');
+                }
+                allClients = await response.json();
+                renderClientOptions();
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Kunden für Dropdown:', error);
+                showFormStatusMessage('Fehler beim Laden der Kunden für Zuweisung: ' + error.message, true);
+            }
+        }
+
+        function renderClientOptions() {
+            clientIdSelect.innerHTML = '<option value="">Kunde auswählen...</option>';
+            allClients.forEach(client => {
+                const option = document.createElement('option');
+                option.value = client.id;
+                option.textContent = client.name;
+                clientIdSelect.appendChild(option);
+            });
+        }
+
+        async function fetchLocationsForClient(clientId) {
+            try {
+                if (!clientId) {
+                    locationIdSelect.innerHTML = '<option value="">Einsatzort auswählen...</option>';
+                    return;
+                }
+                const response = await fetch(`/api/locations/client/${clientId}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader()
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/';
+                        return;
+                    }
+                    throw new Error('Fehler beim Laden der Einsatzorte für den Kunden');
+                }
+                allLocations = await response.json();
+                renderLocationOptions();
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Einsatzorte für den Kunden:', error);
+                showFormStatusMessage('Fehler beim Laden der Einsatzorte für den Kunden: ' + error.message, true);
+                locationIdSelect.innerHTML = '<option value="">Fehler beim Laden</option>';
+            }
+        }
+
+        function renderLocationOptions() {
+            locationIdSelect.innerHTML = '<option value="">Einsatzort auswählen...</option>';
+            allLocations.forEach(location => {
+                const option = document.createElement('option');
+                option.value = location.id;
+                option.textContent = `${location.name} (${location.address})`;
+                locationIdSelect.appendChild(option);
+            });
+        }
+
+        async function fetchJobStatuses() {
+            try {
+                const response = await fetch('/api/jobs/statuses', {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader()
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/';
+                        return;
+                    }
+                    throw new Error('Fehler beim Abrufen der Job-Status');
+                }
+                possibleJobStatuses = await response.json();
+                renderStatusOptions();
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Job-Status:', error);
+                showFormStatusMessage('Fehler beim Laden der Job-Status: ' + error.message, true);
+            }
+        }
+
+        function renderStatusOptions() {
+            statusSelect.innerHTML = '';
+            possibleJobStatuses.forEach(status => {
+                const option = document.createElement('option');
+                option.value = status;
+                option.textContent = status;
+                statusSelect.appendChild(option);
+            });
+        }
+
+        // Event-Listener für Kunden-Dropdown-Änderung (für das Job-Formular)
+        clientIdSelect.addEventListener('change', (event) => {
+            const selectedClientId = event.target.value;
+            fetchLocationsForClient(selectedClientId);
+        });
+
+        function cancelJobForm() {
+            jobFormModal.style.display = 'none'; // Modal verstecken
+            formStatusMessage.classList.add('hidden');
+        }
+        cancelJobFormButton.addEventListener('click', cancelJobForm);
+
+        async function openEditJobModal(jobId) {
+            currentEditingJobId = jobId;
+            modalTitle.textContent = 'Job bearbeiten';
+            jobForm.reset();
+            formStatusMessage.classList.add('hidden');
+
+            const job = allJobs.find(j => j.id === jobId);
+            if (job) {
+                jobIdInput.value = job.id;
+                jobNumberInput.value = job.job_number;
+                jobTitleInput.value = job.title;
+                jobDescriptionInput.value = job.description || '';
+
+                // Kunden und Locations laden und dann die Werte setzen
+                await fetchClientsForDropdown();
+                clientIdSelect.value = job.client_id;
+
+                await fetchLocationsForClient(job.client_id);
+                locationIdSelect.value = job.location_id;
+
+                // Benutzer für Zuweisung laden
+                await fetchUsersForAssignment();
+                assignedUserIdSelect.value = job.assigned_user_id || '';
+
+                // Job-Status laden
+                await fetchJobStatuses();
+                statusSelect.value = job.status;
+                statusGroup.classList.remove('hidden'); // Status beim Bearbeiten anzeigen
+
+                // Sicherstellen, dass die Zeiten korrekt in der lokalen Zeitzone angezeigt werden
+                // Da die DB anscheinend lokale Zeiten ohne Zeitzonen-Info speichert,
+                // parsen wir direkt in 'Europe/Berlin'.
+                plannedStartTimeInput.value = job.planned_start_time ? moment.tz(job.planned_start_time, 'YYYY-MM-DD HH:mm:ss', 'Europe/Berlin').format('YYYY-MM-DDTHH:mm') : '';
+                plannedEndTimeInput.value = job.planned_end_time ? moment.tz(job.planned_end_time, 'YYYY-MM-DD HH:mm:ss', 'Europe/Berlin').format('YYYY-MM-DDTHH:mm') : '';
+            }
+            jobFormModal.style.display = 'flex'; // Modal anzeigen
+        }
+
+        jobForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const jobId = jobIdInput.value;
+            const job_number = jobNumberInput.value;
+            const title = jobTitleInput.value;
+            const description = jobDescriptionInput.value;
+            const client_id = parseInt(clientIdSelect.value);
+            const location_id = parseInt(locationIdSelect.value);
+            const assigned_user_id = assignedUserIdSelect.value ? parseInt(assignedUserIdSelect.value) : null;
+
+            // Wichtig: Die Eingabe vom datetime-local-Feld als Europe/Berlin-Zeit interpretieren
+            // und für das Backend in dem Format senden, das MySQL für lokale DATETIME-Spalten erwartet.
+            const planned_start_time = plannedStartTimeInput.value ? moment.tz(plannedStartTimeInput.value, 'YYYY-MM-DDTHH:mm', 'Europe/Berlin').format('YYYY-MM-DD HH:mm:ss') : null;
+            const planned_end_time = plannedEndTimeInput.value ? moment.tz(plannedEndTimeInput.value, 'YYYY-MM-DDTHH:mm', 'Europe/Berlin').format('YYYY-MM-DD HH:mm:ss') : null;
+
+            const status = statusSelect.value;
+
+            let endpoint = '/api/jobs';
+            let method = 'POST';
+            let body = { job_number, title, description, location_id, assigned_user_id, planned_start_time, planned_end_time };
+
+            if (!job_number || !title || !location_id) {
+                showFormStatusMessage('Job-Nummer, Titel und Einsatzort sind erforderlich.', true);
+                return;
+            }
+
+            if (currentEditingJobId) {
+                endpoint += `/${jobId}`;
+                method = 'PUT';
+                body.status = status;
+            }
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader()
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showFormStatusMessage(data.message, false);
+                    jobFormModal.style.display = 'none';
+                    fetchJobsOverview(); // Jobs im Dashboard neu laden
+                } else {
+                    showFormStatusMessage(data.message || 'Operation fehlgeschlagen.', true);
+                }
+            } catch (error) {
+                console.error('Fehler beim Senden des Job-Formulars:', error);
+                showFormStatusMessage('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.', true);
+            }
+        });
+
+        function showFormStatusMessage(message, isError) {
+            formStatusMessage.textContent = message;
+            formStatusMessage.classList.remove('hidden', 'bg-yellow-100', 'text-yellow-800', 'border-yellow-300', 'bg-red-100', 'text-red-800', 'border-red-300', 'bg-green-100', 'text-green-800', 'border-green-300');
+            formStatusMessage.classList.add('message');
+
+            if (isError) {
+                formStatusMessage.classList.add('bg-red-100', 'text-red-800', 'border-red-300');
+            } else {
+                formStatusMessage.classList.add('bg-green-100', 'text-green-800', 'border-green-300');
+            }
+            formStatusMessage.classList.remove('hidden');
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Prüfung, ob loggedInUser und roles korrekt gesetzt sind
+            if (loggedInUser && loggedInUser.roles && (loggedInUser.roles.includes('Manager') || loggedInUser.roles.includes('Admin') || loggedInUser.roles.includes('Disponent') || loggedInUser.roles.includes('Monteur'))) {
+                // Initialdaten für die Modals laden, auch wenn sie nicht sofort sichtbar sind
+                await Promise.all([
+                    fetchUsersForAssignment(),
+                    fetchClientsForDropdown(),
+                    fetchJobStatuses()
+                ]);
+                await fetchJobsOverview();
+            } else {
+                jobsOverviewList.innerHTML = '<p class="text-center text-red-500 py-4">Sie haben keine Berechtigung, die Job-Übersicht zu sehen.</p>';
+            }
+        });
+
+        // Macht die logout-funktion global verfügbar
+        window.logout = logout;
+        window.openEditJobModal = openEditJobModal;
+        window.openMapModalByCoords = openMapModalByCoords; // NEU: Global verfügbar machen
+        window.openBarcodeModal = openBarcodeModal;
+        window.openUserPinBarcodeModal = openUserPinBarcodeModal;
+        window.openStreetViewModalByAddress = openStreetViewModalByAddress; // NEU: Global verfügbar machen
+
+
+        // Schließen der Modals beim Klicken außerhalb
+        window.onclick = function(event) {
+            if (event.target === mapModal) {
+                closeMapModal();
+            }
+            if (event.target === barcodeModal) {
+                closeBarcodeModal();
+            }
+            if (event.target === jobFormModal) {
+                cancelJobForm();
+            }
+            if (event.target === streetViewModal) { // NEU: Street View Modal schließen
+                closeStreetViewModal();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRP Mitarbeiter Verwaltung</title>
+    <script src="https://cdn.tailwindcss.com"></script> <!-- Tailwind CSS CDN hinzufügen -->
+    <style>
+        /* CSS für den Header wird hier belassen, da es global sein soll */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1000;
+        }
+        .app-title {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .burger-menu {
+            font-size: 2em;
+            cursor: pointer;
+            padding: 5px;
+            user-select: none;
+        }
+        header .dropdown-menu { /* Spezifische Regel für das Dropdown im Header */
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: #444;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 999;
+            border-radius: 0 0 5px 5px;
+            overflow: hidden;
+        }
+        header .dropdown-menu.show {
+            display: block;
+        }
+        .dropdown-menu button {
+            color: white;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 0;
+            border-radius: 0;
+        }
+        .dropdown-menu button:hover {
+            background-color: #575757;
+        }
+        .dropdown-menu a { /* Auch für Links im Menü */
+            color: white;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 0;
+            border-radius: 0;
+        }
+        .dropdown-menu a:hover {
+            background-color: #575757;
+        }
+
+        /* Grundlegendes Modal-Styling (aus custom.css oder hier definiert) */
+        .modal {
+            display: none; /* Standardmäßig versteckt */
+            position: fixed; /* Bleibt über allem */
+            z-index: 1000; /* Ganz vorne */
+            left: 0;
+            top: 0;
+            width: 100%; /* Volle Breite */
+            height: 100%; /* Volle Höhe */
+            overflow: auto; /* Scrollbar, wenn nötig */
+            background-color: rgba(0,0,0,0.4); /* Dunkler Hintergrund */
+            align-items: center; /* Zentriert vertikal */
+            justify-content: center; /* Zentriert horizontal */
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Oder eine andere feste Breite */
+            max-width: 600px; /* Etwas breiter als Kunden, wegen mehr Feldern */
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        /* Spezielles Styling für das Barcode-Modal, wenn nötig */
+        #barcode-modal .modal-content {
+            max-width: 400px; /* Kleinere Breite für Barcode */
+            text-align: center;
+        }
+        /* NEU: Zentrierung des SVG-Barcodes innerhalb des Modals */
+        #barcode-modal .modal-content svg {
+            display: block; /* Ermöglicht margin: auto */
+            margin: 0 auto; /* Zentriert das SVG horizontal */
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            top: 10px;
+            right: 20px;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .overflow-x-auto {
+            overflow-x: auto;
+        }
+        .min-w-full {
+            min-width: 100%;
+        }
+        /* Tailwind-ähnliche Klassen für Basis-Stile, falls custom.css diese nicht hat */
+        .bg-white { background-color: #fff; }
+        .bg-gray-100 { background-color: #f3f4f6; }
+        .border-collapse { border-collapse: collapse; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .rounded-lg { border-radius: 0.5rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .text-left { text-align: left; }
+        .text-sm { font-size: 0.875rem; }
+        .font-semibold { font-weight: 600; }
+        .text-gray-600 { color: #4b5563; }
+        .border-b { border-bottom-width: 1px; border-color: #e5e7eb; }
+        .hover\:bg-gray-50:hover { background-color: #f9fafb; }
+        .text-gray-800 { color: #1f2937; }
+        .text-blue-600 { color: #2563eb; }
+        .hover\:text-blue-800:hover { color: #1e40af; }
+        .text-red-600 { color: #dc2626; }
+        .hover\:text-red-800:hover { color: #991b1b; }
+        .font-medium { font-weight: 500; }
+        .mr-2 { margin-right: 0.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .bg-green-500 { background-color: #22c55e; }
+        .text-white { color: #fff; }
+        .rounded-md { border-radius: 0.375rem; }
+        .hover\:bg-green-600:hover { background-color: #16a34a; }
+        .text-center { text-align: center; }
+        .text-gray-500 { color: #6b7280; }
+        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+        .space-y-4 > *:not(:last-child) { margin-bottom: 1rem; }
+        .block { display: block; }
+        .w-full { width: 100%; }
+        .p-2 { padding: 0.5rem; }
+        .border { border-width: 1px; }
+        .border-gray-300 { border-color: #d1d5db; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .text-gray-700 { color: #374151; }
+        .flex { display: flex; }
+        .justify-end { justify-content: flex-end; }
+        .space-x-2 > *:not(:first-child) { margin-left: 0.5rem; }
+        .bg-gray-300 { background-color: #d1d5db; }
+        .text-gray-800 { color: #1f2937; }
+        .hover\:bg-gray-400:hover { background-color: #9ca3af; }
+        .bg-blue-500 { background-color: #3b82f6; }
+        .hover\:bg-blue-600:hover { background-color: #2563eb; }
+        .ml-2 { margin-left: 0.5rem; }
+        .content-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        /* Neuer Stil: Macht die klickbaren Elemente in der Tabelle erkennbar */
+        .clickable-cell {
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-color: #2563eb;
+            text-underline-offset: 2px;
+        }
+        .clickable-cell:hover {
+            text-decoration-color: #1e40af;
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/header.ejs') %>
+
+    <div class="content-container">
+        <h1>Mitarbeiter Verwaltung</h1>
+        <div id="user-list-container" class="overflow-x-auto">
+            <p class="text-center text-gray-500 py-4">Benutzer werden geladen...</p>
+        </div>
+        
+        <button id="add-user-button" class="mt-4 px-4 py-2 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600">Neuen Benutzer hinzufügen</button>
+
+        <!-- Modal für Benutzer erstellen/bearbeiten (jetzt auch mit Passwort-Optionen) -->
+        <div id="user-form-modal" class="modal">
+            <div class="modal-content">
+                <h3 id="form-title">Benutzer erstellen</h3>
+                <form id="user-form" class="space-y-4">
+                    <div>
+                        <label for="fullName" class="block text-sm font-medium text-gray-700">Vollständiger Name</label>
+                        <input type="text" id="fullName" name="fullName" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <!-- PIN-Feld entfernt, da der Key automatisch generiert wird -->
+                    <!-- Passwortfelder (bei Erstellung erforderlich, bei Bearbeitung optional) -->
+                    <div id="password-field-group">
+                        <label for="userPassword" class="block text-sm font-medium text-gray-700">Passwort</label>
+                        <input type="password" id="userPassword" name="password" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div id="confirm-password-field-group" class="hidden"> <!-- Bestätigungsfeld zunächst versteckt -->
+                        <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Passwort bestätigen</label>
+                        <input type="password" id="confirmPassword" name="confirmPassword" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="userRole" class="block text-sm font-medium text-gray-700">Rolle</label>
+                        <select id="userRole" name="roleId" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                            <!-- Rollen werden dynamisch geladen -->
+                        </select>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="isActive" name="isActive" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="isActive" class="ml-2 block text-sm text-gray-900">Aktiv</label>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" id="cancel-user-form" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Abbrechen</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- NEUES MODAL FÜR BARCODE -->
+        <div id="barcode-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-button" onclick="closeBarcodeModal()">×</span>
+                <h3 id="barcode-modal-title" class="text-lg font-bold mb-4">Barcode der PIN</h3>
+                <svg id="barcode-svg"></svg>
+                <p class="mt-2 text-sm text-gray-600">PIN: <span id="barcode-value" class="font-semibold text-gray-800"></span></p>
+            </div>
+        </div>
+        <!-- ENDE BARCODE MODAL -->
+
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.3/JsBarcode.all.min.js"></script>
+    <script>
+        const loggedInUser = <%- JSON.stringify(user) %>; 
+        let allUsers = [];
+        let allRoles = [];
+        let currentEditingUserId = null; 
+        
+        const userListContainer = document.getElementById('user-list-container');
+        const addUserButton = document.getElementById('add-user-button');
+        const userFormModal = document.getElementById('user-form-modal');
+        const userForm = document.getElementById('user-form');
+        const formTitle = document.getElementById('form-title');
+        const fullNameInput = document.getElementById('fullName');
+        // const userPinInput = document.getElementById('userPin'); // Entfernt
+        const userPasswordInput = document.getElementById('userPassword');
+        const userRoleSelect = document.getElementById('userRole');
+        const isActiveCheckbox = document.getElementById('isActive');
+        const cancelUserFormButton = document.getElementById('cancel-user-form');
+
+        // NEU: Referenzen zu den zusätzlichen Feldern
+        // const pinFieldGroup = document.getElementById('pin-field-group'); // Entfernt
+        const passwordFieldGroup = document.getElementById('password-field-group');
+        const confirmPasswordFieldGroup = document.getElementById('confirm-password-field-group');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+
+        // NEU: Referenzen für das Barcode-Modal
+        const barcodeModal = document.getElementById('barcode-modal');
+        const barcodeModalTitle = document.getElementById('barcode-modal-title');
+        const barcodeSvg = document.getElementById('barcode-svg');
+        const barcodeValueSpan = document.getElementById('barcode-value');
+
+
+        async function logout() {
+            try {
+                const response = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    window.location.href = '/';
+                } else {
+                    const errorData = await response.json();
+                    alert('Fehler beim Abmelden: ' + (errorData.message || 'Unbekannter Fehler'));
+                    console.error('Logout-Fehler-Antwort:', errorData);
+                }
+            } catch (error) {
+                console.error('Fehler beim Abmelden:', error);
+                alert('Netzwerkfehler beim Abmelden. Bitte versuchen Sie es erneut.');
+            }
+        }
+
+        async function fetchUsers() {
+            try {
+                const response = await fetch('/api/users', {
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader() 
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/';
+                        return;
+                    }
+                    throw new Error('Fehler beim Laden der Benutzer: ' + response.statusText);
+                }
+                allUsers = await response.json();
+                renderUserList();
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Benutzer:', error);
+                userListContainer.innerHTML = `<p class="text-center text-red-500 py-4">Fehler beim Laden der Benutzer: ${error.message}</p>`;
+            }
+        }
+
+        async function fetchRoles() {
+            try {
+                const response = await fetch('/api/users/roles', {
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader() 
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/';
+                        return;
+                    }
+                    throw new Error('Fehler beim Laden der Rollen: ' + response.statusText);
+                }
+                allRoles = await response.json();
+                renderRoleOptions();
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Rollen:', error);
+            }
+        }
+
+        function renderRoleOptions() {
+            userRoleSelect.innerHTML = '';
+            allRoles.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role.id;
+                option.textContent = role.name;
+                userRoleSelect.appendChild(option);
+            });
+        }
+
+        function renderUserList() {
+            if (allUsers.length === 0) {
+                userListContainer.innerHTML = '<p class="text-center text-gray-500 py-4">Keine Benutzer gefunden.</p>';
+                return;
+            }
+
+            let tableHtml = `
+                <table class="min-w-full bg-white border-collapse shadow-sm rounded-lg">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Name</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">PIN</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Rolle</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Status</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            allUsers.forEach(user => {
+                tableHtml += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">
+                            <a href="/admin/user-shifts/${user.id}" class="text-blue-600 hover:text-blue-800 font-medium">
+                                ${user.full_name || '-'}
+                            </a>
+                        </td>
+                        <td class="py-2 px-4 border-b text-sm text-blue-600 clickable-cell font-medium" onclick="openBarcodeModal('${user.pin}', '${user.full_name}')">${user.pin}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${user.role_name || '-'}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${user.isActive ? 'Aktiv' : 'Inaktiv'}</td>
+                        <td class="py-2 px-4 border-b text-sm">
+                            <button onclick="openEditUserModal(${user.id})" class="text-blue-600 hover:text-blue-800 font-medium mr-2">Bearbeiten</button>
+                            <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-800 font-medium">Löschen</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tableHtml += `
+                    </tbody>
+                </table>
+            `;
+            userListContainer.innerHTML = tableHtml;
+        }
+
+        function getAuthHeader() {
+            const jwtCookie = document.cookie.split('; ').find(row => row.startsWith('jwt='));
+            if (jwtCookie) {
+                const token = jwtCookie.split('=')[1];
+                return { 'Authorization': `Bearer ${token}` };
+            }
+            return {};
+        }
+
+        function openAddUserModal() {
+            formTitle.textContent = 'Neuen Benutzer erstellen';
+            userForm.reset();
+            currentEditingUserId = null;
+
+            // Bei Erstellung: PIN wird automatisch generiert, Passwort ist erforderlich
+            // pinFieldGroup.classList.remove('hidden'); // Entfernt
+            // userPinInput.required = true; // Entfernt
+            passwordFieldGroup.classList.remove('hidden');
+            userPasswordInput.required = true;
+            confirmPasswordFieldGroup.classList.remove('hidden'); // Bestätigungsfeld auch anzeigen
+            confirmPasswordInput.required = true; // Bestätigung auch erforderlich machen
+            
+            userFormModal.style.display = 'flex'; // Modal anzeigen
+            renderRoleOptions();
+        }
+
+        function openEditUserModal(userId) {
+            const userToEdit = allUsers.find(user => user.id === userId);
+            if (!userToEdit) {
+                alert('Benutzer nicht gefunden.');
+                return;
+            }
+
+            formTitle.textContent = `Benutzer bearbeiten: ${userToEdit.full_name || userToEdit.username}`; // Verwende full_name
+            fullNameInput.value = userToEdit.full_name; // Verwende full_name
+            userRoleSelect.value = userToEdit.role_id; // Verwende role_id
+            isActiveCheckbox.checked = userToEdit.isActive;
+            
+            // Bei Bearbeitung: PIN-Feld ist immer versteckt, Passwortfelder optional anzeigen
+            // pinFieldGroup.classList.add('hidden'); // Entfernt (existiert nicht mehr)
+            // userPinInput.required = false; // Entfernt
+            passwordFieldGroup.classList.remove('hidden'); // Passwortfeld anzeigen für optionale Änderung
+            userPasswordInput.required = false; // Passwort ist optional
+            confirmPasswordFieldGroup.classList.remove('hidden'); // Bestätigungsfeld auch anzeigen
+            confirmPasswordInput.required = false; // Bestätigung ist optional
+
+            userPasswordInput.value = ''; // Felder leeren
+            confirmPasswordInput.value = '';
+            
+            currentEditingUserId = userId;
+            userFormModal.style.display = 'flex'; // Modal anzeigen
+            renderRoleOptions();
+        }
+
+        cancelUserFormButton.addEventListener('click', () => {
+            userFormModal.style.display = 'none'; // Modal verstecken
+        });
+
+        userForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const fullName = fullNameInput.value;
+            // const pin = userPinInput.value; // Entfernt
+            const password = userPasswordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            const roleId = parseInt(userRoleSelect.value);
+            const isActive = isActiveCheckbox.checked;
+
+            // Passwort-Validierung (nur wenn Felder sichtbar oder ausgefüllt)
+            if (!passwordFieldGroup.classList.contains('hidden') && (password || currentEditingUserId === null)) { // Wenn Passwortfeld sichtbar ODER neuer Benutzer
+                if (password !== confirmPassword) {
+                    alert('Passwörter stimmen nicht überein.');
+                    return;
+                }
+                if (password.length > 0 && password.length < 6) { // Nur prüfen, wenn Passwort eingegeben wurde
+                    alert('Passwort muss mindestens 6 Zeichen lang sein.');
+                    return;
+                }
+            }
+
+
+            try {
+                let response;
+                if (currentEditingUserId) {
+                    // Bearbeiten eines bestehenden Benutzers
+                    const updateData = { role_id: roleId, isActive }; // Verwende role_id
+                    
+                    // Zuerst die Benutzerdetails aktualisieren
+                    response = await fetch(`/api/users/${currentEditingUserId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+                        body: JSON.stringify({ role_id: updateData.role_id, isActive: updateData.isActive, full_name: fullName }) // Füge full_name hinzu
+                    });
+                    if (!response.ok) {
+                         const errorData = await response.json();
+                         throw new Error(errorData.message || 'Fehler beim Aktualisieren der Benutzerdetails.');
+                    }
+                    // Dann, wenn ein neues Passwort eingegeben wurde, das Passwort aktualisieren
+                    if (password && password.length >=6) { // Nur Passwort senden, wenn es eingegeben und lang genug ist
+                        response = await fetch(`/api/users/${currentEditingUserId}/password`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+                            body: JSON.stringify({ newPassword: password })
+                        });
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.message || 'Fehler beim Aktualisieren des Passworts.');
+                        }
+                    }
+
+                } else {
+                    // Neuen Benutzer erstellen (PIN wird automatisch generiert, Passwort ist hier erforderlich)
+                    // if (pin.length < 4 || pin.length > 10) { alert('PIN muss 4-10-stellig sein.'); return; } // Entfernt
+                    if (!password || password.length < 6) { alert('Passwort muss mindestens 6 Zeichen lang sein.'); return; }
+                    if (password !== confirmPassword) { alert('Passwörter stimmen nicht überein.'); return; }
+
+                    response = await fetch('/api/users', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+                        body: JSON.stringify({ fullName, password, roleId, isActive }) // `pin` entfernt, full_name und role_id
+                    });
+                    // NEU: Wenn erfolgreich, zeige die generierte PIN an
+                    if (response.ok) {
+                        const responseData = await response.json();
+                        alert(`Benutzer erfolgreich erstellt! Generierte PIN: ${responseData.pin || 'Nicht verfügbar'}`);
+                    }
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Fehler bei der Operation.');
+                }
+
+                // alert('Operation erfolgreich!'); // Diese Benachrichtigung wird nur gezeigt, wenn die PIN in der obigen 'if (response.ok)' Bedingung angezeigt wird
+                userFormModal.style.display = 'none'; // Modal verstecken
+                await fetchUsers();
+            } catch (error) {
+                alert('Fehler: ' + error.message);
+                console.error('Fehler bei Benutzeroperation:', error);
+            }
+        });
+
+        async function deleteUser(userId) {
+            if (!confirm('Sind Sie sicher, dass Sie diesen Benutzer löschen möchten?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: { ...getAuthHeader() }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Fehler beim Löschen des Benutzers.');
+                }
+
+                alert('Benutzer erfolgreich gelöscht!');
+                await fetchUsers();
+            } catch (error) {
+                alert('Fehler: ' + error.message);
+                console.error('Fehler beim Löschen des Benutzers:', error);
+            }
+        }
+
+        // NEUE Funktion: Barcode-Modal öffnen
+        function openBarcodeModal(pin, userFullName) {
+            barcodeModalTitle.textContent = `Barcode für ${userFullName}`;
+            barcodeValueSpan.textContent = pin;
+
+            // Sicherstellen, dass die SVG sauber ist
+            barcodeSvg.innerHTML = '';
+            // Barcode generieren
+            JsBarcode("#barcode-svg", pin, {
+                format: "CODE128",
+                displayValue: true,
+                fontSize: 24, // Größe des angezeigten Textes
+                width: 2,
+                height: 100,
+                margin: 10
+            });
+            barcodeModal.style.display = 'flex'; // Modal anzeigen
+        }
+
+        // Event Listener für das Schließen des Barcode-Modals
+        function closeBarcodeModal() {
+            barcodeModal.style.display = 'none'; // Modal verstecken
+            barcodeSvg.innerHTML = ''; // Barcode-SVG leeren
+            barcodeValueSpan.textContent = ''; // Wert leeren
+        }
+
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (loggedInUser.roles && loggedInUser.roles.includes('Manager')) {
+                await fetchRoles();
+                await fetchUsers();
+            } else {
+                userListContainer.innerHTML = '<p class="text-center text-red-500 py-4">Sie haben keine Berechtigung, die Benutzerverwaltung zu sehen.</p>';
+                if (addUserButton) addUserButton.style.display = 'none';
+            }
+
+            if (addUserButton) {
+                addUserButton.addEventListener('click', openAddUserModal);
+            }
+
+            // Schließen des Modals beim Klicken außerhalb
+            window.onclick = function(event) {
+                if (event.target === barcodeModal) {
+                    closeBarcodeModal();
+                }
+                // HINWEIS: Hier können Sie weitere Modal-Schließ-Logiken für andere Modals hinzufügen,
+                // falls es weitere Modals in dieser Datei gibt, die durch Klicken außerhalb geschlossen werden sollen.
+                if (event.target === userFormModal) {
+                    userFormModal.style.display = 'none';
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>

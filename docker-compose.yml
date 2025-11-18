@@ -1,0 +1,308 @@
+version: '3.8'
+
+services:
+  # --------------------------------------------------------------------------
+  # API Gateway Service - Der zentrale Eintrittspunkt für alle Anfragen
+  # --------------------------------------------------------------------------
+  api-gateway:
+    build:
+      context: ./api-gateway # Korrigiert: Relativ zu DRP/drp2/
+      dockerfile: Dockerfile
+    container_name: drp_api_gateway
+    restart: always
+    ports:
+      - "3005:3000" # Host-Port 3005 -> Container-Port 3000 (Gateway lauscht auf 3000)
+    volumes:
+      - "./api-gateway:/app" # Korrigiert: Relativ zu DRP/drp2/ für Live-Codeänderungen
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:3001
+      JOB_SERVICE_URL: http://job-service:3002
+      SHIFT_SERVICE_URL: http://shift-service:3003
+      LOCATION_SERVICE_URL: http://location-service:3004
+      CLIENT_SERVICE_URL: http://client-service:3006 # Client Service Port ist 3006
+      FRONTEND_EJS_SERVICE_URL: http://frontend-ejs-service:3007 # URL für den Frontend Service
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: redis-cache
+      REDIS_PORT: 6379
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
+    depends_on:
+      # Das API Gateway muss nicht direkt vom Frontend-Dienst abhängen,
+      # um selbst zu starten, da es nur ein Router ist.
+      auth-service:
+        condition: service_started
+      job-service:
+        condition: service_started
+      shift-service:
+        condition: service_started
+      location-service:
+        condition: service_started
+      client-service:
+        condition: service_started
+      redis-cache:
+        condition: service_healthy
+      mysql-db:
+        condition: service_healthy
+    networks:
+      - drp_network
+
+  # --------------------------------------------------------------------------
+  # Auth Microservice - Benutzerauthentifizierung, -registrierung, -verwaltung
+  # --------------------------------------------------------------------------
+  auth-service:
+    build:
+      context: ./auth-service # Korrigiert
+      dockerfile: Dockerfile
+    container_name: drp_auth_service
+    restart: always
+    ports:
+      - "3001:3001" # Interner Port des Auth Service
+    volumes:
+      - "./auth-service:/app" # Korrigiert
+    environment:
+      DB_HOST: mysql-db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASS}
+      DB_NAME: auth_db
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: redis-cache
+      REDIS_PORT: 6379
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    networks:
+      - drp_network
+
+  # --------------------------------------------------------------------------
+  # Job Microservice - Verwaltung aller Job-bezogenen Daten
+  # --------------------------------------------------------------------------
+  job-service:
+    build:
+      context: ./job-service # Korrigiert
+      dockerfile: Dockerfile
+    container_name: drp_job_service
+    restart: always
+    ports:
+      - "3002:3002" # Interner Port des Job Service
+    volumes:
+      - "./job-service:/app" # Korrigiert
+    environment:
+      DB_HOST: mysql-db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASS}
+      DB_NAME: job_db
+      AUTH_SERVICE_URL: http://auth-service:3001
+      CLIENT_SERVICE_URL: http://client-service:3006
+      LOCATION_SERVICE_URL: http://location-service:3004
+      REDIS_HOST: redis-cache
+      REDIS_PORT: 6379
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      client-service:
+        condition: service_started
+      location-service:
+        condition: service_started
+      redis-cache:
+        condition: service_healthy
+    networks:
+      - drp_network
+
+  # --------------------------------------------------------------------------
+  # Shift Microservice - Verwaltung aller Schicht-bezogenen Daten
+  # --------------------------------------------------------------------------
+  shift-service:
+    build:
+      context: ./shift-service # Korrigiert
+      dockerfile: Dockerfile
+    container_name: drp_shift_service
+    restart: always
+    ports:
+      - "3003:3003" # Interner Port des Shift Service
+    volumes:
+      - "./shift-service:/app" # Korrigiert
+    environment:
+      DB_HOST: mysql-db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASS}
+      DB_NAME: shift_db
+      AUTH_SERVICE_URL: http://auth-service:3001
+      LOCATION_SERVICE_URL: http://location-service:3004
+      JOB_SERVICE_URL: http://job-service:3002
+      REDIS_HOST: redis-cache
+      REDIS_PORT: 6379
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      location-service:
+        condition: service_started
+      job-service:
+        condition: service_started
+      redis-cache:
+        condition: service_healthy
+    networks:
+      - drp_network
+
+  # --------------------------------------------------------------------------
+  # Location Microservice - Verwaltung aller Standort-bezogenen Daten
+  # --------------------------------------------------------------------------
+  location-service:
+    build:
+      context: ./location-service # Korrigiert
+      dockerfile: Dockerfile
+    container_name: drp_location_service
+    restart: always
+    ports:
+      - "3004:3004" # Interner Port des Location Service
+    volumes:
+      - "./location-service:/app" # Korrigiert
+    environment:
+      DB_HOST: mysql-db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASS}
+      DB_NAME: location_db
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
+      REDIS_HOST: redis-cache
+      REDIS_PORT: 6379
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    networks:
+      - drp_network
+
+  # --------------------------------------------------------------------------
+  # Client Microservice - Verwaltung aller Kunden-bezogenen Daten
+  # --------------------------------------------------------------------------
+  client-service:
+    build:
+      context: ./client-service # Korrigiert
+      dockerfile: Dockerfile
+    container_name: drp_client_service
+    restart: always
+    ports:
+      - "3006:3006" # Interner Port des Client Service
+    volumes:
+      - "./client-service:/app" # Korrigiert
+    environment:
+      DB_HOST: mysql-db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASS}
+      DB_NAME: client_db
+      AUTH_SERVICE_URL: http://auth-service:3001
+      REDIS_HOST: redis-cache
+      REDIS_PORT: 6379
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      redis-cache:
+        condition: service_healthy
+    networks:
+      - drp_network
+
+  # --------------------------------------------------------------------------
+  # Frontend EJS Service - Hosts and renders the EJS Dashboard
+  # --------------------------------------------------------------------------
+  frontend-ejs-service:
+    build:
+      context: ./frontend-ejs-service # Korrigiert
+      dockerfile: Dockerfile
+    container_name: drp_frontend_ejs_service
+    restart: always
+    ports:
+      - "3007:3007" # Interner Port des Frontend EJS Service
+    volumes:
+      - "./frontend-ejs-service:/app" # Korrigiert
+    environment:
+      PORT: 3007
+      API_GATEWAY_URL: http://api-gateway:3000
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
+    depends_on:
+      api-gateway: # Frontend EJS Service hängt vom API Gateway ab, um Backend-Daten abzurufen
+        condition: service_started
+    networks:
+      - drp_network
+
+  # --------------------------------------------------------------------------
+  # Zentrale MySQL Datenbank-Dienst (ein Container, mehrere Datenbanken)
+  # --------------------------------------------------------------------------
+  mysql-db:
+        image: mysql:8.0
+        container_name: drp_mysql_db_central
+        restart: always
+        environment:
+          MYSQL_ROOT_PASSWORD: ${DB_PASS}
+          MYSQL_USER: ${DB_USER}
+          MYSQL_PASSWORD: ${DB_PASS}
+          MYSQL_MULTIPLE_DATABASES: "auth_db,job_db,shift_db,location_db,client_db"
+        volumes:
+          - mysql_data:/var/lib/mysql
+          # Nur noch das eine globale Initialisierungsskript mounten
+          - ./init-all-dbs.sql:/docker-entrypoint-initdb.d/init-all-dbs.sql
+        healthcheck:
+          test: ["CMD-SHELL", "mysqladmin ping -h localhost -u$$MYSQL_USER -p$$MYSQL_PASSWORD"]
+          interval: 10s
+          timeout: 5s
+          retries: 5
+          start_period: 30s
+        networks:
+          - drp_network
+        ports:
+          - "3309:3306"
+
+
+  # --------------------------------------------------------------------------
+  # Redis Cache/Broker-Dienst (zentral belassen)
+#  --------------------------------------------------------------------------
+  redis-cache:
+    image: redis:7.2-alpine
+    container_name: drp_redis_cache2
+    restart: always
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - drp_network
+
+  # --------------------------------------------------------------------------
+  # Cloudflared Tunnel-Dienst
+  # --------------------------------------------------------------------------
+  cloudflared-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: drp_cloudflared_tunnel2
+    restart: unless-stopped
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    command: tunnel run --token ${TUNNEL_TOKEN}
+    depends_on:
+      - api-gateway
+    networks:
+      - drp_network
+
+# --------------------------------------------------------------------------
+# Netzwerke definieren
+# --------------------------------------------------------------------------
+networks:
+  drp_network:
+    driver: bridge
+
+# --------------------------------------------------------------------------
+# Volumes für die persistente Speicherung definieren
+# --------------------------------------------------------------------------
+volumes:
+  mysql_data:
+  redis_data:

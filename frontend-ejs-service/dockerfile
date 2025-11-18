@@ -1,0 +1,22 @@
+# Dockerfile für den Frontend EJS Microservice
+
+# Basis-Image: Node.js 22-alpine für Alpine Linux
+FROM node:22-alpine
+
+# Setze das Arbeitsverzeichnis im Container
+WORKDIR /app
+
+# Kopiere package.json und package-lock.json
+COPY package*.json ./
+
+# Installiere Abhängigkeiten
+RUN npm install --omit=dev
+
+# Kopiere den Rest des Anwendungscodes (einschließlich views/ und public/)
+COPY . .
+
+# Öffne den Port, auf dem der Frontend Service lauscht (muss mit port 3007 in server.js übereinstimmen)
+EXPOSE 3007
+
+# Startet die Anwendung
+CMD [ "npm", "start" ]

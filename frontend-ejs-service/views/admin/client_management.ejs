@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRP Kundenverwaltung</title>
+    <script src="https://cdn.tailwindcss.com"></script> <!-- Tailwind CSS CDN hinzufügen -->
+    <style>
+        /* CSS für den Header wird hier belassen, da es global sein soll */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1000;
+        }
+        .app-title {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .burger-menu {
+            font-size: 2em;
+            cursor: pointer;
+            padding: 5px;
+            user-select: none;
+        }
+        header .dropdown-menu { /* Spezifische Regel für das Dropdown im Header */
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: #444;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 999;
+            border-radius: 0 0 5px 5px;
+            overflow: hidden;
+        }
+        header .dropdown-menu.show {
+            display: block;
+        }
+        .dropdown-menu button {
+            color: white;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 0;
+            border-radius: 0;
+        }
+        .dropdown-menu button:hover {
+            background-color: #575757;
+        }
+        .dropdown-menu a { /* Auch für Links im Menü */
+            color: white;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 0;
+            border-radius: 0;
+        }
+        .dropdown-menu a:hover {
+            background-color: #575757;
+        }
+
+        /* Grundlegendes Modal-Styling (kann aus custom.css kommen) */
+        .modal {
+            display: none; /* Standardmäßig versteckt */
+            position: fixed; /* Bleibt über allem */
+            z-index: 1000; /* Ganz vorne */
+            left: 0;
+            top: 0;
+            width: 100%; /* Volle Breite */
+            height: 100%; /* Volle Höhe */
+            overflow: auto; /* Scrollbar, wenn nötig */
+            background-color: rgba(0,0,0,0.4); /* Dunkler Hintergrund */
+            align-items: center; /* Zentriert vertikal */
+            justify-content: center; /* Zentriert horizontal */
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Oder eine andere feste Breite */
+            max-width: 500px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .overflow-x-auto {
+            overflow-x: auto;
+        }
+        .min-w-full {
+            min-width: 100%;
+        }
+        /* Tailwind-ähnliche Klassen für Basis-Stile, falls custom.css diese nicht hat */
+        .bg-white { background-color: #fff; }
+        .bg-gray-100 { background-color: #f3f4f6; }
+        .border-collapse { border-collapse: collapse; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .rounded-lg { border-radius: 0.5rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .text-left { text-align: left; }
+        .text-sm { font-size: 0.875rem; }
+        .font-semibold { font-weight: 600; }
+        .text-gray-600 { color: #4b5563; }
+        .border-b { border-bottom-width: 1px; border-color: #e5e7eb; }
+        .hover\:bg-gray-50:hover { background-color: #f9fafb; }
+        .text-gray-800 { color: #1f2937; }
+        .text-blue-600 { color: #2563eb; }
+        .hover\:text-blue-800:hover { color: #1e40af; }
+        .text-red-600 { color: #dc2626; }
+        .hover\:text-red-800:hover { color: #991b1b; }
+        .font-medium { font-weight: 500; }
+        .mr-2 { margin-right: 0.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .bg-green-500 { background-color: #22c55e; }
+        .text-white { color: #fff; }
+        .rounded-md { border-radius: 0.375rem; }
+        .hover\:bg-green-600:hover { background-color: #16a34a; }
+        .text-center { text-align: center; }
+        .text-gray-500 { color: #6b7280; }
+        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+        .space-y-4 > *:not(:last-child) { margin-bottom: 1rem; }
+        .block { display: block; }
+        .w-full { width: 100%; }
+        .p-2 { padding: 0.5rem; }
+        .border { border-width: 1px; }
+        .border-gray-300 { border-color: #d1d5db; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .text-gray-700 { color: #374151; }
+        .flex { display: flex; }
+        .justify-end { justify-content: flex-end; }
+        .space-x-2 > *:not(:first-child) { margin-left: 0.5rem; }
+        .bg-gray-300 { background-color: #d1d5db; }
+        .text-gray-800 { color: #1f2937; }
+        .hover\:bg-gray-400:hover { background-color: #9ca3af; }
+        .bg-blue-500 { background-color: #3b82f6; }
+        .hover\:bg-blue-600:hover { background-color: #2563eb; }
+        .ml-2 { margin-left: 0.5rem; }
+        .h-4 { height: 1rem; }
+        .w-4 { width: 1rem; }
+        .text-blue-600 { color: #2563eb; }
+        .rounded { border-radius: 0.25rem; }
+        .items-center { align-items: center; }
+        .content-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/header.ejs') %>
+
+    <div class="content-container">
+        <h1>Kundenverwaltung</h1>
+        <div id="client-list-container" class="overflow-x-auto">
+            <p class="text-center text-gray-500 py-4">Kunden werden geladen...</p>
+        </div>
+        
+        <button id="add-client-button" class="mt-4 px-4 py-2 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600">Neuen Kunden hinzufügen</button>
+
+        <!-- Modal für Kunden erstellen/bearbeiten -->
+        <div id="client-form-modal" class="modal">
+            <div class="modal-content">
+                <h3 id="form-title">Kunden erstellen</h3>
+                <form id="client-form" class="space-y-4">
+                    <div>
+                        <label for="clientName" class="block text-sm font-medium text-gray-700">Name des Kunden/der Firma</label>
+                        <input type="text" id="clientName" name="name" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="contactPerson" class="block text-sm font-medium text-gray-700">Ansprechpartner</label>
+                        <input type="text" id="contactPerson" name="contact_person" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700">E-Mail</label>
+                        <input type="email" id="email" name="email" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="phone" class="block text-sm font-medium text-gray-700">Telefon</label>
+                        <input type="text" id="phone" name="phone" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="address" class="block text-sm font-medium text-gray-700">Adresse</label>
+                        <input type="text" id="address" name="address" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" id="cancel-client-form" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Abbrechen</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Annahme: loggedInUser ist über EJS bereits verfügbar, wie in user_management.ejs
+        const loggedInUser = <%- JSON.stringify(user) %>; 
+        let allClients = [];
+        let currentEditingClientId = null; 
+        
+        const clientListContainer = document.getElementById('client-list-container');
+        const addClientButton = document.getElementById('add-client-button');
+        const clientFormModal = document.getElementById('client-form-modal');
+        const clientForm = document.getElementById('client-form');
+        const formTitle = document.getElementById('form-title');
+        const clientNameInput = document.getElementById('clientName');
+        const contactPersonInput = document.getElementById('contactPerson');
+        const emailInput = document.getElementById('email');
+        const phoneInput = document.getElementById('phone');
+        const addressInput = document.getElementById('address');
+        const cancelClientFormButton = document.getElementById('cancel-client-form');
+
+        // Hilfsfunktion zum Abrufen des Auth-Headers (aus user_management.ejs übernommen)
+        function getAuthHeader() {
+            const jwtCookie = document.cookie.split('; ').find(row => row.startsWith('jwt='));
+            if (jwtCookie) {
+                const token = jwtCookie.split('=')[1];
+                return { 'Authorization': `Bearer ${token}` };
+            }
+            return {};
+        }
+
+        async function fetchClients() {
+            try {
+                const response = await fetch('/api/clients', {
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader() 
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/'; // Weiterleitung zur Login-Seite bei fehlender/ungültiger Auth
+                        return;
+                    }
+                    throw new Error('Fehler beim Laden der Kunden: ' + response.statusText);
+                }
+                allClients = await response.json();
+                renderClientList();
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Kunden:', error);
+                clientListContainer.innerHTML = `<p class="text-center text-red-500 py-4">Fehler beim Laden der Kunden: ${error.message}</p>`;
+            }
+        }
+
+        function renderClientList() {
+            if (allClients.length === 0) {
+                clientListContainer.innerHTML = '<p class="text-center text-gray-500 py-4">Keine Kunden gefunden.</p>';
+                return;
+            }
+
+            let tableHtml = `
+                <table class="min-w-full bg-white border-collapse shadow-sm rounded-lg">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Name</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Ansprechpartner</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">E-Mail</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Telefon</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Adresse</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            allClients.forEach(client => {
+                tableHtml += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${client.name}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${client.contact_person || '-'}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${client.email || '-'}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${client.phone || '-'}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${client.address || '-'}</td>
+                        <td class="py-2 px-4 border-b text-sm">
+                            <button onclick="openEditClientModal(${client.id})" class="text-blue-600 hover:text-blue-800 font-medium mr-2">Bearbeiten</button>
+                            <button onclick="deleteClient(${client.id})" class="text-red-600 hover:text-red-800 font-medium">Löschen</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tableHtml += `
+                    </tbody>
+                </table>
+            `;
+            clientListContainer.innerHTML = tableHtml;
+        }
+
+        function openAddClientModal() {
+            formTitle.textContent = 'Neuen Kunden erstellen';
+            clientForm.reset(); // Formular zurücksetzen
+            currentEditingClientId = null;
+            clientFormModal.style.display = 'flex'; // Modal anzeigen
+        }
+
+        function openEditClientModal(clientId) {
+            const clientToEdit = allClients.find(client => client.id === clientId);
+            if (!clientToEdit) {
+                alert('Kunde nicht gefunden.');
+                return;
+            }
+
+            formTitle.textContent = `Kunden bearbeiten: ${clientToEdit.name}`;
+            clientNameInput.value = clientToEdit.name;
+            contactPersonInput.value = clientToEdit.contact_person || '';
+            emailInput.value = clientToEdit.email || '';
+            phoneInput.value = clientToEdit.phone || '';
+            addressInput.value = clientToEdit.address || '';
+            
+            currentEditingClientId = clientId;
+            clientFormModal.style.display = 'flex'; // Modal anzeigen
+        }
+
+        cancelClientFormButton.addEventListener('click', () => {
+            clientFormModal.style.display = 'none'; // Modal verstecken
+        });
+
+        clientForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const clientData = {
+                name: clientNameInput.value,
+                contact_person: contactPersonInput.value,
+                email: emailInput.value,
+                phone: phoneInput.value,
+                address: addressInput.value
+            };
+
+            // Einfache Client-seitige Validierung
+            if (!clientData.name) {
+                alert('Der Kundenname ist erforderlich.');
+                return;
+            }
+
+            try {
+                let response;
+                if (currentEditingClientId) {
+                    // Kunden aktualisieren
+                    response = await fetch(`/api/clients/${currentEditingClientId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+                        body: JSON.stringify(clientData)
+                    });
+                } else {
+                    // Neuen Kunden erstellen
+                    response = await fetch('/api/clients', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+                        body: JSON.stringify(clientData)
+                    });
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Fehler bei der Operation.');
+                }
+
+                alert('Operation erfolgreich!');
+                clientFormModal.style.display = 'none'; // Modal verstecken
+                await fetchClients(); // Kundenliste neu laden
+            } catch (error) {
+                alert('Fehler: ' + error.message);
+                console.error('Fehler bei Kundenoperation:', error);
+            }
+        });
+
+        async function deleteClient(clientId) {
+            if (!confirm('Sind Sie sicher, dass Sie diesen Kunden löschen möchten? Alle zugehörigen Einsatzorte müssen zuerst gelöscht oder neu zugewiesen werden!')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/clients/${clientId}`, {
+                    method: 'DELETE',
+                    headers: { ...getAuthHeader() }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Fehler beim Löschen des Kunden.');
+                }
+
+                alert('Kunde erfolgreich gelöscht!');
+                await fetchClients(); // Kundenliste neu laden
+            } catch (error) {
+                alert('Fehler: ' + error.message);
+                console.error('Fehler beim Löschen des Kunden:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Nur Manager, Admin und Disponenten dürfen die Kundenverwaltung sehen und nutzen
+            if (loggedInUser && loggedInUser.roles && (loggedInUser.roles.includes('Manager') || loggedInUser.roles.includes('Admin') || loggedInUser.roles.includes('Disponent'))) {
+                await fetchClients();
+            } else {
+                clientListContainer.innerHTML = '<p class="text-center text-red-500 py-4">Sie haben keine Berechtigung, die Kundenverwaltung zu sehen.</p>';
+                if (addClientButton) addClientButton.style.display = 'none'; // Button verstecken
+            }
+
+            if (addClientButton) {
+                addClientButton.addEventListener('click', openAddClientModal);
+            }
+        });
+
+    </script>
+</body>
+</html>

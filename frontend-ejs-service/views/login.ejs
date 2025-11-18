@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRP Login</title>
+    <!-- Font Awesome CSS einbinden -->
+    <!-- WICHTIG: Ersetzen Sie den 'integrity'-Wert mit dem aktuellen von der offiziellen Font Awesome CDN-Seite für Version 6.x -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f4f4f4; margin: 0; }
+        .login-container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
+        h1 { color: #333; margin-bottom: 20px; }
+        .input-wrapper {
+            position: relative;
+            margin-bottom: 15px;
+            max-width: 200px; /* Maximale Breite für den Wrapper */
+            margin-left: auto; /* Zentrierung des Wrappers */
+            margin-right: auto; /* Zentrierung des Wrappers */
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; text-align: center; font-size: 1.2em;
+        }
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #888;
+            font-size: 0.9em;
+            user-select: none; /* Verhindert Textauswahl */
+        }
+        button { background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; }
+        button:hover { background-color: #0056b3; }
+        .error-message { color: red; margin-top: 10px; }
+        #passwordGroup { display: none; }
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            padding: 0;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+        /* Stil für das Icon */
+        .input-wrapper .fa-barcode { /* Font Awesome Icon-Stil */
+            position: absolute;
+            right: 10px; /* Position rechts innerhalb des Wrappers */
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2em; /* Größe des Icons anpassen */
+            color: #888; /* Farbe des Icons anpassen */
+        }
+        /* Zusätzlicher Padding für das Input-Feld, damit der Text nicht vom Icon überlappt wird */
+        .input-wrapper input[type="text"] {
+            padding-right: 35px; /* Genügend Platz für das Icon */
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>DRP Login</h1>
+        <% if (message) { %>
+            <p><%= message %></p>
+        <% } %>
+        <form id="loginForm">
+            <!-- Verstecktes Benutzernamefeld für Barrierefreiheit und Autocomplete-Kontrolle -->
+            <label for="username" class="visually-hidden">Benutzername</label>
+            <input type="text" id="username" name="username" class="visually-hidden" autocomplete="username">
+
+            <div id="pinGroup">
+                <div class="input-wrapper">
+                    <i class="fas fa-barcode"></i> <!-- Font Awesome Barcode-Icon hinzugefügt -->
+                    <input type="text" id="pin" name="pin" placeholder="Badge Scannen" maxlength="10" inputmode="numeric" autocomplete="off">
+                </div>
+                <button type="button" id="nextButton">Weiter</button>
+            </div>
+            
+            <div id="passwordGroup">
+                <div class="input-wrapper">
+                    <input type="password" id="password" name="password" placeholder="Passwort eingeben" required autocomplete="new-password">
+                    <span class="password-toggle" id="passwordToggle">👁️</span>
+                </div>
+                <button type="submit">Anmelden</button>
+            </div>
+            
+            <p id="errorMessage" class="error-message"></p>
+        </form>
+    </div>
+
+    <script>
+        const pinInput = document.getElementById('pin');
+        const passwordInput = document.getElementById('password');
+        const nextButton = document.getElementById('nextButton');
+        const loginForm = document.getElementById('loginForm');
+        const pinGroup = document.getElementById('pinGroup');
+        const passwordGroup = document.getElementById('passwordGroup');
+        const errorMessageElement = document.getElementById('errorMessage');
+        const usernameInput = document.getElementById('username');
+        const passwordToggle = document.getElementById('passwordToggle');
+
+        let enteredPin = '';
+
+        // Funktion zum Umschalten der Passwortanzeige
+        passwordToggle.addEventListener('click', () => {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                passwordToggle.textContent = '🙈'; // Auge-durchgestrichen-Icon
+            } else {
+                passwordInput.type = 'password';
+                passwordToggle.textContent = '👁️'; // Auge-Icon
+            }
+        });
+
+        nextButton.addEventListener('click', () => {
+            if (pinInput.value.length >= 4 && pinInput.value.length <= 10) {
+                enteredPin = pinInput.value;
+                usernameInput.value = enteredPin; // Für Barrierefreiheit und Autocomplete-Kontrolle
+
+                pinGroup.style.display = 'none';
+                passwordGroup.style.display = 'block';
+                passwordInput.focus();
+                errorMessageElement.textContent = '';
+            } else {
+                errorMessageElement.textContent = 'Bitte geben Sie eine 4- bis 10-stellige PIN ein.';
+            }
+        });
+
+        pinInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                nextButton.click();
+            }
+        });
+
+        loginForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const password = passwordInput.value; 
+            errorMessageElement.textContent = '';
+
+            if (!enteredPin || !password) {
+                errorMessageElement.textContent = 'PIN und Passwort sind erforderlich.';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ pin: enteredPin, password: password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    window.location.href = data.redirectTo || '/dashboard';
+                } else {
+                    errorMessageElement.textContent = data.message || 'Login fehlgeschlagen.';
+                    // Bei fehlgeschlagenem Login wieder zum PIN-Feld zurückkehren
+                    pinGroup.style.display = 'block';
+                    passwordGroup.style.display = 'none';
+                    enteredPin = '';
+                    pinInput.value = '';
+                    passwordInput.value = '';
+                    pinInput.focus();
+                }
+            } catch (error) {
+                console.error('Fehler beim Login:', error);
+                errorMessageElement.textContent = 'Netzwerkfehler oder Server nicht erreichbar.';
+                // Bei Netzwerkfehler auch zurück zum PIN-Feld
+                pinGroup.style.display = 'block';
+                passwordGroup.style.display = 'none';
+                enteredPin = '';
+                pinInput.value = '';
+                passwordInput.value = '';
+                pinInput.focus();
+            }
+        });
+
+        window.addEventListener('load', () => {
+            pinInput.focus();
+        });
+    </script>
+</body>
+</html>

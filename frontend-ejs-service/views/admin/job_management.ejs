@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRP Jobverwaltung</title>
+    <script src="https://cdn.tailwindcss.com"></script> <!-- Tailwind CSS CDN hinzufügen -->
+    <style>
+        /* CSS für den Header wird hier belassen, da es global sein soll */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1000;
+        }
+        .app-title {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .burger-menu {
+            font-size: 2em;
+            cursor: pointer;
+            padding: 5px;
+            user-select: none;
+        }
+        header .dropdown-menu { /* Spezifische Regel für das Dropdown im Header */
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: #444;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 999;
+            border-radius: 0 0 5px 5px;
+            overflow: hidden;
+        }
+        header .dropdown-menu.show {
+            display: block;
+        }
+        .dropdown-menu button {
+            color: white;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 0;
+            border-radius: 0;
+        }
+        .dropdown-menu button:hover {
+            background-color: #575757;
+        }
+        .dropdown-menu a { /* Auch für Links im Menü */
+            color: white;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 0;
+            border-radius: 0;
+        }
+        .dropdown-menu a:hover {
+            background-color: #575757;
+        }
+
+        /* Grundlegendes Modal-Styling (kann aus custom.css kommen) */
+        .modal {
+            display: none; /* Standardmäßig versteckt */
+            position: fixed; /* Bleibt über allem */
+            z-index: 1000; /* Ganz vorne */
+            left: 0;
+            top: 0;
+            width: 100%; /* Volle Breite */
+            height: 100%; /* Volle Höhe */
+            overflow: auto; /* Scrollbar, wenn nötig */
+            background-color: rgba(0,0,0,0.4); /* Dunkler Hintergrund */
+            align-items: center; /* Zentriert vertikal */
+            justify-content: center; /* Zentriert horizontal */
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Oder eine andere feste Breite */
+            max-width: 600px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .overflow-x-auto {
+            overflow-x: auto;
+        }
+        .min-w-full {
+            min-width: 100%;
+        }
+        /* Tailwind-ähnliche Klassen für Basis-Stile, falls custom.css diese nicht hat */
+        .bg-white { background-color: #fff; }
+        .bg-gray-100 { background-color: #f3f4f6; }
+        .border-collapse { border-collapse: collapse; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .rounded-lg { border-radius: 0.5rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .text-left { text-align: left; }
+        .text-sm { font-size: 0.875rem; }
+        .font-semibold { font-weight: 600; }
+        .text-gray-600 { color: #4b5563; }
+        .border-b { border-bottom-width: 1px; border-color: #e5e7eb; }
+        .hover\:bg-gray-50:hover { background-color: #f9fafb; }
+        .text-gray-800 { color: #1f2937; }
+        .text-blue-600 { color: #2563eb; }
+        .hover\:text-blue-800:hover { color: #1e40af; }
+        .text-red-600 { color: #dc2626; }
+        .hover\:text-red-800:hover { color: #991b1b; }
+        .font-medium { font-weight: 500; }
+        .mr-2 { margin-right: 0.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .flex { display: flex; }
+        .justify-end { justify-content: flex-end; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .bg-green-500 { background-color: #22c55e; }
+        .text-white { color: #fff; }
+        .rounded-md { border-radius: 0.375rem; }
+        .hover\:bg-green-600:hover { background-color: #16a34a; }
+        .text-center { text-align: center; }
+        .text-gray-500 { color: #6b7280; }
+        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+        .space-y-4 > *:not(:last-child) { margin-bottom: 1rem; }
+        .block { display: block; }
+        .w-full { width: 100%; }
+        .p-2 { padding: 0.5rem; }
+        .border { border-width: 1px; }
+        .border-gray-300 { border-color: #d1d5db; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .text-gray-700 { color: #374151; }
+        .space-x-2 > *:not(:first-child) { margin-left: 0.5rem; }
+        .bg-gray-300 { background-color: #d1d5db; }
+        .hover\:bg-gray-400:hover { background-color: #9ca3af; }
+        .bg-blue-500 { background-color: #3b82f6; }
+        .hover\:bg-blue-600:hover { background-color: #2563eb; }
+        .hidden { display: none; }
+        .message { padding: 0.75rem; border-radius: 0.25rem; border-width: 1px; margin-top: 1rem;}
+        .bg-red-100 { background-color: #fee2e2; }
+        .text-red-800 { color: #991b1b; }
+        .border-red-300 { border-color: #fca5a5; }
+        .bg-green-100 { background-color: #dcfce7; }
+        .text-green-800 { color: #166534; }
+        .border-green-300 { border-color: #86efac; }
+        .content-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/header.ejs') %>
+
+    <div class="content-container">
+        <h1>Jobverwaltung</h1>
+        <div class="flex justify-end mb-4">
+            <button id="add-job-button" class="px-4 py-2 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600">Neuen Job hinzufügen</button>
+        </div>
+        
+        <div id="job-list-container" class="overflow-x-auto">
+            <p class="text-center text-gray-500 py-4">Jobs werden geladen...</p>
+        </div>
+
+        <!-- Modal für Job erstellen/bearbeiten -->
+        <div id="job-form-modal" class="modal">
+            <div class="modal-content">
+                <h3 id="modal-title">Job hinzufügen</h3>
+                <form id="job-form" class="space-y-4">
+                    <input type="hidden" id="job-id">
+
+                    <div>
+                        <label for="jobNumber" class="block text-sm font-medium text-gray-700">Job-Nummer</label>
+                        <input type="text" id="jobNumber" name="job_number" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+
+                    <div>
+                        <label for="jobTitle" class="block text-sm font-medium text-gray-700">Titel des Auftrags</label>
+                        <input type="text" id="jobTitle" name="title" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="jobDescription" class="block text-sm font-medium text-gray-700">Beschreibung</label>
+                        <textarea id="jobDescription" name="description" rows="3" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></textarea>
+                    </div>
+
+                    <div>
+                        <label for="clientId" class="block text-sm font-medium text-gray-700">Kunde</label>
+                        <select id="clientId" name="client_id" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                            <!-- Kunden werden dynamisch geladen -->
+                        </select>
+                    </div>
+                    <div>
+                        <label for="locationId" class="block text-sm font-medium text-gray-700">Einsatzort</label>
+                        <select id="locationId" name="location_id" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                            <!-- Einsatzorte werden dynamisch basierend auf dem Kunden geladen -->
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="assignedUserId" class="block text-sm font-medium text-gray-700">Zugewiesen an</label>
+                        <select id="assignedUserId" name="assigned_user_id" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                            <!-- Benutzer werden dynamisch geladen -->
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="plannedStartTime" class="block text-sm font-medium text-gray-700">Geplanter Start</label>
+                        <input type="datetime-local" id="plannedStartTime" name="start_time" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="plannedEndTime" class="block text-sm font-medium text-gray-700">Geplantes Ende</label>
+                        <input type="datetime-local" id="plannedEndTime" name="end_time" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+
+                    <div id="statusGroup" class="hidden">
+                        <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
+                        <select id="status" name="status" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></select>
+                    </div>
+                    
+                    <div id="form-status-message" class="hidden message"></div>
+                    <div class="flex justify-end space-x-2 mt-4">
+                        <button type="button" id="cancel-job-form" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Abbrechen</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const loggedInUser = <%- JSON.stringify(user) %>;
+        let allJobs = [];
+        let allUsers = []; // Für die Zuweisung von Benutzern
+        let allClients = []; // Für die Auswahl des Kunden
+        let allLocations = []; // Für die Auswahl des Einsatzortes
+        let possibleJobStatuses = [];
+        let currentEditingJobId = null;
+
+        const jobListContainer = document.getElementById('job-list-container');
+        const addJobButton = document.getElementById('add-job-button');
+        const jobFormModal = document.getElementById('job-form-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const jobForm = document.getElementById('job-form');
+        const jobIdInput = document.getElementById('job-id');
+        const jobNumberInput = document.getElementById('jobNumber');
+        const jobTitleInput = document.getElementById('jobTitle');
+        const jobDescriptionInput = document.getElementById('jobDescription');
+        const clientIdSelect = document.getElementById('clientId');
+        const locationIdSelect = document.getElementById('locationId');
+        const assignedUserIdSelect = document.getElementById('assignedUserId');
+        const plannedStartTimeInput = document.getElementById('plannedStartTime');
+        const plannedEndTimeInput = document.getElementById('plannedEndTime');
+        const statusSelect = document.getElementById('status');
+        const statusGroup = document.getElementById('statusGroup');
+        const cancelJobFormButton = document.getElementById('cancel-job-form');
+        const formStatusMessage = document.getElementById('form-status-message');
+
+        // Helper-Funktion zum sicheren Abrufen des Auth-Headers
+        function getAuthHeader() {
+            if (!loggedInUser || !loggedInUser.id) { // Überprüfen Sie auf `id` statt `userId`
+                console.warn("Nicht angemeldet oder Benutzerdaten unvollständig. Kein Autorisierungs-Header gesendet.");
+                // Hier könnten Sie auch zur Login-Seite weiterleiten, falls der User nicht eingeloggt ist
+                // window.location.href = '/'; 
+                return {}; 
+            }
+            const jwtCookie = document.cookie.split('; ').find(row => row.startsWith('jwt='));
+            if (jwtCookie) {
+                const token = jwtCookie.split('=')[1];
+                return { 'Authorization': `Bearer ${token}` };
+            }
+            console.warn("JWT-Cookie nicht gefunden. Kein Autorisierungs-Header gesendet.");
+            return {}; 
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    window.location.href = '/';
+                } else {
+                    const errorData = await response.json();
+                    alert('Fehler beim Abmelden: ' + (errorData.message || 'Unbekannter Fehler'));
+                    console.error('Logout-Fehler-Antwort:', errorData);
+                }
+            } catch (error) {
+                console.error('Fehler beim Abmelden:', error);
+                alert('Netzwerkfehler beim Abmelden. Bitte versuchen Sie es erneut.');
+            }
+        }
+
+        async function fetchJobs() {
+            try {
+                let url = '/api/jobs';
+                if (loggedInUser.roles && loggedInUser.roles.includes('Monteur')) { // Korrigierte Rollenprüfung
+                    url += `?userId=${loggedInUser.id}`; // `loggedInUser.id` verwenden
+                }
+                const response = await fetch(url, {
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader() 
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/';
+                        return;
+                    }
+                    throw new Error('Fehler beim Abrufen der Jobs');
+                }
+                allJobs = await response.json();
+                renderJobList();
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Jobs:', error);
+                jobListContainer.innerHTML = '<p class="text-center text-red-500 py-4">Fehler beim Laden der Jobs.</p>';
+                showFormStatusMessage('Fehler beim Laden der Jobs: ' + error.message, true);
+            }
+        }
+
+        async function fetchUsersForAssignment() {
+            try {
+                // Endpunkt für Mitarbeiterrollen im userController (jetzt korrekt!)
+                const response = await fetch('/api/jobs/users-for-assignment', { 
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader() 
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/';
+                        return;
+                    }
+                    throw new Error('Fehler beim Abrufen der Benutzer für die Zuweisung');
+                }
+                allUsers = await response.json();
+                renderAssignedUserOptions();
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Benutzer für die Zuweisung:', error);
+                showFormStatusMessage('Fehler beim Laden der Benutzer für Zuweisung: ' + error.message, true);
+            }
+        }
+
+        function renderAssignedUserOptions() {
+            assignedUserIdSelect.innerHTML = '<option value="">Nicht zugewiesen</option>';
+            allUsers.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                // Jetzt sollten full_name und role_name korrekt vom userModel geliefert werden
+                option.textContent = `${user.full_name} (${user.role_name})`; 
+                assignedUserIdSelect.appendChild(option);
+            });
+        }
+
+        async function fetchClientsForDropdown() {
+            try {
+                const response = await fetch('/api/clients', {
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader() 
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/';
+                        return;
+                    }
+                    throw new Error('Fehler beim Laden der Kunden für Dropdown');
+                }
+                allClients = await response.json();
+                renderClientOptions();
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Kunden für Dropdown:', error);
+                showFormStatusMessage('Fehler beim Laden der Kunden für Zuweisung: ' + error.message, true);
+            }
+        }
+
+        function renderClientOptions() {
+            clientIdSelect.innerHTML = '<option value="">Kunde auswählen...</option>';
+            allClients.forEach(client => {
+                const option = document.createElement('option');
+                option.value = client.id;
+                option.textContent = client.name;
+                clientIdSelect.appendChild(option);
+            });
+        }
+
+        async function fetchLocationsForClient(clientId) {
+            try {
+                if (!clientId) {
+                    locationIdSelect.innerHTML = '<option value="">Einsatzort auswählen...</option>';
+                    return;
+                }
+                // Endpunkt für Locations nach Client ID im locationController (jetzt korrekt!)
+                const response = await fetch(`/api/locations?client_id=${clientId}`, { 
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader() 
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/';
+                        return;
+                    }
+                    throw new Error('Fehler beim Laden der Einsatzorte für den Kunden');
+                }
+                allLocations = await response.json();
+                renderLocationOptions();
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Einsatzorte für den Kunden:', error);
+                showFormStatusMessage('Fehler beim Laden der Einsatzorte für den Kunden: ' + error.message, true);
+                locationIdSelect.innerHTML = '<option value="">Fehler beim Laden</option>';
+            }
+        }
+
+        function renderLocationOptions() {
+            locationIdSelect.innerHTML = '<option value="">Einsatzort auswählen...</option>';
+            allLocations.forEach(location => {
+                const option = document.createElement('option');
+                option.value = location.id;
+                option.textContent = `${location.name} (${location.address})`;
+                locationIdSelect.appendChild(option);
+            });
+        }
+
+        async function fetchJobStatuses() {
+            try {
+                const response = await fetch('/api/jobs/statuses', {
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader() 
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/';
+                        return;
+                    }
+                    throw new Error('Fehler beim Abrufen der Job-Status');
+                }
+                possibleJobStatuses = await response.json();
+                renderStatusOptions();
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Job-Status:', error);
+                showFormStatusMessage('Fehler beim Laden der Job-Status: ' + error.message, true);
+            }
+        }
+
+        function renderStatusOptions() {
+            statusSelect.innerHTML = '';
+            possibleJobStatuses.forEach(status => {
+                const option = document.createElement('option');
+                option.value = status;
+                option.textContent = status;
+                statusSelect.appendChild(option);
+            });
+        }
+
+        function renderJobList() {
+            if (allJobs.length === 0) {
+                jobListContainer.innerHTML = '<p class="text-center text-gray-500 py-4">Keine Jobs gefunden.</p>';
+                return;
+            }
+
+            let tableHtml = `
+                <table class="min-w-full bg-white border-collapse shadow-sm rounded-lg">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">ID</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Job-Nr.</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Titel</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Kunde</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Einsatzort</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Status</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Zugewiesen an</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Geplant (Start/Ende)</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            allJobs.forEach(job => {
+                // Die Daten kommen jetzt direkt aus dem jobModel mit Joins
+                const startDate = job.start_time ? new Date(job.start_time) : null;
+                const endDate = job.end_time ? new Date(job.end_time) : null;
+
+                const formattedStartTime = startDate ? startDate.toLocaleDateString('de-DE', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'UTC' // Wichtig: Zeit als UTC anzeigen
+                }) : '-';
+
+                const formattedEndTime = endDate ? endDate.toLocaleDateString('de-DE', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'UTC' // Wichtig: Zeit als UTC anzeigen
+                }) : '-';
+
+                tableHtml += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${job.id}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${job.job_number}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${job.title}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${job.client_name || '-'}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${job.location_name || '-'} (${job.location_address || '-'})</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${job.status}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${job.assigned_to_username || 'Nicht zugewiesen'}</td>
+                        <td class="py-2 px-4 border-b text-sm text-gray-800">${formattedStartTime} - ${formattedEndTime}</td>
+                        <td class="py-2 px-4 border-b text-sm">
+                            ${(loggedInUser.roles && (loggedInUser.roles.includes('Manager') || loggedInUser.roles.includes('Disponent') || loggedInUser.roles.includes('Admin'))) ? `<button class="text-blue-600 hover:text-blue-800 font-medium mr-2" onclick="openEditJobModal(${job.id})">Bearbeiten</button>` : ''}
+                            ${(loggedInUser.roles && (loggedInUser.roles.includes('Manager') || loggedInUser.roles.includes('Admin'))) ? `<button class="text-red-600 hover:text-red-800 font-medium" onclick="deleteJob(${job.id})">Löschen</button>` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+            tableHtml += `
+                    </tbody>
+                </table>
+            `;
+            jobListContainer.innerHTML = tableHtml;
+        }
+
+        // Event-Listener für Kunden-Dropdown-Änderung
+        clientIdSelect.addEventListener('change', (event) => {
+            const selectedClientId = event.target.value;
+            fetchLocationsForClient(selectedClientId);
+        });
+
+        function openAddJobModal() {
+            currentEditingJobId = null;
+            modalTitle.textContent = 'Job hinzufügen';
+            jobForm.reset();
+            jobIdInput.value = '';
+            statusGroup.classList.add('hidden'); // Status ist beim Erstellen immer PENDING
+            formStatusMessage.classList.add('hidden');
+            
+            // Dropdowns neu laden
+            fetchUsersForAssignment();
+            fetchClientsForDropdown();
+            locationIdSelect.innerHTML = '<option value="">Einsatzort auswählen...</option>'; // Locations zurücksetzen
+            
+            jobFormModal.style.display = 'flex'; // Modal anzeigen
+            assignedUserIdSelect.value = ''; 
+        }
+
+        async function openEditJobModal(jobId) {
+            currentEditingJobId = jobId;
+            modalTitle.textContent = 'Job bearbeiten';
+            jobForm.reset();
+            formStatusMessage.classList.add('hidden');
+
+            const job = allJobs.find(j => j.id === jobId);
+            if (job) {
+                jobIdInput.value = job.id;
+                jobNumberInput.value = job.job_number;
+                jobTitleInput.value = job.title;
+                jobDescriptionInput.value = job.description || '';
+
+                // Kunden und Locations laden und dann die Werte setzen
+                await fetchClientsForDropdown();
+                clientIdSelect.value = job.client_id;
+
+                await fetchLocationsForClient(job.client_id);
+                locationIdSelect.value = job.location_id;
+                
+                assignedUserIdSelect.value = job.assigned_user_id || '';
+                plannedStartTimeInput.value = job.start_time ? new Date(job.start_time).toISOString().slice(0, 16) : '';
+                plannedEndTimeInput.value = job.end_time ? new Date(job.end_time).toISOString().slice(0, 16) : '';
+                statusSelect.value = job.status;
+                statusGroup.classList.remove('hidden'); // Status beim Bearbeiten anzeigen
+            }
+            jobFormModal.style.display = 'flex'; // Modal anzeigen
+        }
+
+        cancelJobFormButton.addEventListener('click', () => {
+            jobFormModal.style.display = 'none'; // Modal verstecken
+            formStatusMessage.classList.add('hidden');
+        });
+
+        jobForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const jobId = jobIdInput.value;
+            const job_number = jobNumberInput.value;
+            const title = jobTitleInput.value;
+            const description = jobDescriptionInput.value;
+            const client_id = parseInt(clientIdSelect.value); // client_id wird nicht direkt an Job-API gesendet, aber für Validierung wichtig
+            const location_id = parseInt(locationIdSelect.value);
+            const assigned_user_id = assignedUserIdSelect.value ? parseInt(assignedUserIdSelect.value) : null;
+            const start_time = plannedStartTimeInput.value || null;
+            const end_time = plannedEndTimeInput.value || null;
+            const status = statusSelect.value;
+
+            let endpoint = '/api/jobs';
+            let method = 'POST';
+            let body = { job_number, title, description, location_id, assigned_user_id, start_time, end_time };
+
+            // Client-seitige Validierung
+            if (!job_number || !title || !location_id) { // client_id wird über location_id ermittelt
+                showFormStatusMessage('Job-Nummer, Titel und Einsatzort sind erforderlich.', true);
+                return;
+            }
+
+            if (currentEditingJobId) {
+                endpoint += `/${jobId}`;
+                method = 'PUT';
+                body.status = status;
+            }
+            
+            try {
+                const response = await fetch(endpoint, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader() 
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showFormStatusMessage(data.message, false);
+                    jobFormModal.style.display = 'none';
+                    fetchJobs();
+                } else {
+                    showFormStatusMessage(data.message || 'Operation fehlgeschlagen.', true);
+                }
+            } catch (error) {
+                console.error('Fehler beim Senden des Job-Formulars:', error);
+                showFormStatusMessage('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.', true);
+            }
+        });
+
+        async function deleteJob(jobId) {
+            if (!confirm('Sind Sie sicher, dass Sie diesen Job löschen möchten?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/jobs/${jobId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeader() 
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(data.message);
+                    fetchJobs();
+                } else {
+                    alert(data.message || 'Job konnte nicht gelöscht werden.');
+                }
+            } catch (error) {
+                console.error('Fehler beim Löschen des Jobs:', error);
+                alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
+            }
+        }
+
+        function showFormStatusMessage(message, isError) {
+            formStatusMessage.textContent = message;
+            formStatusMessage.classList.remove('hidden', 'bg-yellow-100', 'text-yellow-800', 'border-yellow-300', 'bg-red-100', 'text-red-800', 'border-red-300', 'bg-green-100', 'text-green-800', 'border-green-300');
+            formStatusMessage.classList.add('message');
+
+            if (isError) {
+                formStatusMessage.classList.add('bg-red-100', 'text-red-800', 'border-red-300');
+            } else {
+                formStatusMessage.classList.add('bg-green-100', 'text-green-800', 'border-green-300');
+            }
+            formStatusMessage.classList.remove('hidden');
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (loggedInUser && loggedInUser.roles && (loggedInUser.roles.includes('Manager') || loggedInUser.roles.includes('Admin') || loggedInUser.roles.includes('Disponent') || loggedInUser.roles.includes('Monteur'))) {
+                await Promise.all([
+                    fetchUsersForAssignment(),
+                    fetchClientsForDropdown(),
+                    fetchJobStatuses()
+                ]);
+                await fetchJobs();
+            } else {
+                jobListContainer.innerHTML = '<p class="text-center text-red-500 py-4">Sie haben keine Berechtigung, die Jobverwaltung zu sehen.</p>';
+                if (addJobButton) addJobButton.style.display = 'none';
+            }
+            if (addJobButton) {
+                addJobButton.addEventListener('click', openAddJobModal);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schichtübersicht für <%= userName %></title>
+    <script src="https://cdn.tailwindcss.com"></script> <!-- Tailwind CSS CDN hinzufügen -->
+    <style>
+        /* CSS für den Header wird hier belassen, da es global sein soll */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1000;
+        }
+        .app-title {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .burger-menu {
+            font-size: 2em;
+            cursor: pointer;
+            padding: 5px;
+            user-select: none;
+        }
+        header .dropdown-menu { /* Spezifische Regel für das Dropdown im Header */
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: #444;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 999;
+            border-radius: 0 0 5px 5px;
+            overflow: hidden;
+        }
+        header .dropdown-menu.show {
+            display: block;
+        }
+        .dropdown-menu button {
+            color: white;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 0;
+            border-radius: 0;
+        }
+        .dropdown-menu button:hover {
+            background-color: #575757;
+        }
+        .dropdown-menu a { /* Auch für Links im Menü */
+            color: white;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 0;
+            border-radius: 0;
+        }
+        .dropdown-menu a:hover {
+            background-color: #575757;
+        }
+
+        /* Grundlegendes Modal-Styling (kann aus custom.css kommen) */
+        .modal {
+            display: none; /* Standardmäßig versteckt */
+            position: fixed; /* Bleibt über allem */
+            z-index: 1000; /* Ganz vorne */
+            left: 0;
+            top: 0;
+            width: 100%; /* Volle Breite */
+            height: 100%; /* Volle Höhe */
+            overflow: auto; /* Scrollbar, wenn nötig */
+            background-color: rgba(0,0,0,0.4); /* Dunkler Hintergrund */
+            align-items: center; /* Zentriert vertikal */
+            justify-content: center; /* Zentriert horizontal */
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Oder eine andere feste Breite */
+            max-width: 900px; /* Für die Karte etwas breiter */
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            top: 10px;
+            right: 20px;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        /* Neuer Stil: Macht die klickbaren Elemente in der Tabelle erkennbar */
+        .clickable-coords {
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-color: #2563eb;
+            text-underline-offset: 2px;
+        }
+        .clickable-coords:hover {
+            text-decoration-color: #1e40af;
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/header.ejs') %>
+
+    <div class="content-container p-6">
+        <h1 class="text-3xl font-bold mb-6">Schichtübersicht für: <%= userName %></h1>
+
+        <div class="mb-4">
+            <a href="/admin/users" class="inline-block px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Zurück zur Mitarbeiterverwaltung</a>
+        </div>
+
+        <%
+            // Konstante für maximale reguläre Arbeitsstunden pro Tag
+            const MAX_REGULAR_HOURS_PER_DAY = 8; // 8 Stunden
+
+            // Funktion zum Runden der Check-in-Zeit auf die nächste 15-Minuten-Marke (aufrunden)
+            function getAdjustedCheckInTime(checkInMoment) {
+                const minutes = checkInMoment.minutes();
+                const remainder = minutes % 15;
+                if (remainder !== 0) {
+                    checkInMoment.add(15 - remainder, 'minutes');
+                }
+                checkInMoment.set({ second: 0, millisecond: 0 }); // Sekunden und Millisekunden auf 0 setzen
+                return checkInMoment;
+            }
+
+            // Funktion zum Runden der Check-out-Zeit auf die vorherige 15-Minuten-Marke (abrunden)
+            function getAdjustedCheckOutTime(checkOutMoment) {
+                const minutes = checkOutMoment.minutes();
+                const remainder = minutes % 15;
+                if (remainder !== 0) {
+                    checkOutMoment.subtract(remainder, 'minutes'); // Minuten abziehen, um auf die vorherige 15er-Marke zu kommen
+                }
+                checkOutMoment.set({ second: 0, millisecond: 0 }); // Sekunden und Millisekunden auf 0 setzen
+                return checkOutMoment;
+            }
+
+            const monthlySummary = {}; // Speichert { totalRegularMillis, totalOvertimeMillis } pro Monat
+
+            shifts.forEach(shift => {
+                // Nur abgeschlossene Schichten mit Check-in und Check-out für die Übersicht berücksichtigen
+                if (shift.check_in_time && shift.check_out_time) {
+                    let checkIn = moment(shift.check_in_time);
+                    let checkOut = moment(shift.check_out_time);
+
+                    // Angepasste Check-in-Zeit anwenden (aufrunden)
+                    checkIn = getAdjustedCheckInTime(checkIn);
+                    // Angepasste Check-out-Zeit anwenden (abrunden)
+                    checkOut = getAdjustedCheckOutTime(checkOut);
+                    
+                    // Nur positive Dauer berücksichtigen
+                    if (checkOut.isAfter(checkIn)) {
+                        const totalShiftDurationMillis = moment.duration(checkOut.diff(checkIn)).asMilliseconds();
+                        const maxRegularMillis = MAX_REGULAR_HOURS_PER_DAY * 60 * 60 * 1000; // 8 Stunden in Millisekunden
+
+                        let regularMillis = Math.min(totalShiftDurationMillis, maxRegularMillis);
+                        let overtimeMillis = Math.max(0, totalShiftDurationMillis - maxRegularMillis);
+
+                        // Monat und Jahr für die Gruppierung (z.B. "2023-11")
+                        const monthKey = moment(shift.date).format('YYYY-MM');
+
+                        if (!monthlySummary[monthKey]) {
+                            monthlySummary[monthKey] = {
+                                totalRegularMillis: 0,
+                                totalOvertimeMillis: 0
+                            };
+                        }
+                        monthlySummary[monthKey].totalRegularMillis += regularMillis;
+                        monthlySummary[monthKey].totalOvertimeMillis += overtimeMillis;
+                    }
+                }
+            });
+
+            // Monate für die Anzeige sortieren
+            const sortedMonths = Object.keys(monthlySummary).sort((a, b) => moment(a).valueOf() - moment(b).valueOf());
+        %>
+
+        <div id="monthly-summary-container" style="margin-bottom: 20px; background-color: #f0f4f8; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h2 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 15px; color: #333;">Monatsübersicht der geleisteten Stunden</h2>
+            <% if (sortedMonths.length > 0) { %>
+                <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+                    <% sortedMonths.forEach(monthKey => {
+                        const summary = monthlySummary[monthKey];
+                        const totalRegularDuration = moment.duration(summary.totalRegularMillis);
+                        const totalOvertimeDuration = moment.duration(summary.totalOvertimeMillis);
+
+                        const regularHours = Math.floor(totalRegularDuration.asHours());
+                        const regularMinutes = totalRegularDuration.minutes();
+                        const overtimeHours = Math.floor(totalOvertimeDuration.asHours());
+                        const overtimeMinutes = totalOvertimeDuration.minutes();
+                    %>
+                        <div style="background-color: #e2e8f0; padding: 10px 15px; border-radius: 6px; border: 1px solid #cbd5e0;">
+                            <p style="font-weight: bold; color: #444; margin-bottom: 5px;"><%= moment(monthKey).format('MMMM YYYY') %></p>
+                            <p style="color: #666;">Regulär: <%= regularHours %>h <%= regularMinutes %>m</p>
+                            <% if (overtimeHours > 0 || overtimeMinutes > 0) { %>
+                                <p style="color: #d9534f; font-weight: bold;">Überstunden: <%= overtimeHours %>h <%= overtimeMinutes %>m</p>
+                            <% } %>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <p style="color: #666;">Keine abgeschlossenen Schichten für die Monatsübersicht gefunden.</p>
+            <% } %>
+        </div>
+
+
+        <div id="shifts-list-container" class="overflow-x-auto bg-white shadow-md rounded-lg p-4">
+            <% if (shifts && shifts.length > 0) { %>
+                <table class="min-w-full bg-white border-collapse">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Datum</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Check-in (ange.)</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Check-out (ange.)</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Reg. Dauer</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Überstunden</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Check-in Lat/Lon</th>
+                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Check-out Lat/Lon</th>
+                            <!-- Weitere Spalten nach Bedarf -->
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% shifts.forEach(shift => { %>
+                            <tr class="hover:bg-gray-50">
+                                <td class="py-2 px-4 border-b text-sm text-gray-800"><%= moment(shift.date).format('DD.MM.YYYY') %></td>
+                                <td class="py-2 px-4 border-b text-sm text-gray-800">
+                                    <% 
+                                        const originalCheckInMoment = moment(shift.check_in_time);
+                                        const adjustedCheckInMoment = getAdjustedCheckInTime(originalCheckInMoment.clone()); // .clone() ist wichtig
+                                    %>
+                                    <%= adjustedCheckInMoment.tz('Europe/Berlin').format('HH:mm:ss') %>
+                                    <% if (!originalCheckInMoment.isSame(adjustedCheckInMoment, 'minute')) { %>
+                                        <span style="font-size: 0.75em; color: #777;">(Org: <%= originalCheckInMoment.tz('Europe/Berlin').format('HH:mm:ss') %>)</span>
+                                    <% } %>
+                                </td>
+                                <td class="py-2 px-4 border-b text-sm text-gray-800">
+                                    <% if (shift.check_out_time) { %>
+                                        <%
+                                            const originalCheckOutMoment = moment(shift.check_out_time);
+                                            const adjustedCheckOutMoment = getAdjustedCheckOutTime(originalCheckOutMoment.clone()); // .clone() ist wichtig
+                                        %>
+                                        <%= adjustedCheckOutMoment.tz('Europe/Berlin').format('HH:mm:ss') %>
+                                        <% if (!originalCheckOutMoment.isSame(adjustedCheckOutMoment, 'minute')) { %>
+                                            <span style="font-size: 0.75em; color: #777;">(Org: <%= originalCheckOutMoment.tz('Europe/Berlin').format('HH:mm:ss') %>)</span>
+                                        <% } %>
+                                    <% } else { %>
+                                        Offen
+                                    <% } %>
+                                </td>
+                                <% 
+                                    let regularDurationHuman = '-';
+                                    let overtimeDurationHuman = '-';
+
+                                    if (shift.check_in_time && shift.check_out_time) {
+                                        const adjCheckIn = getAdjustedCheckInTime(moment(shift.check_in_time).clone());
+                                        const adjCheckOut = getAdjustedCheckOutTime(moment(shift.check_out_time).clone());
+                                        
+                                        let totalCalculatedDurationMillis = 0;
+                                        if (adjCheckOut.isAfter(adjCheckIn)) {
+                                            totalCalculatedDurationMillis = moment.duration(adjCheckOut.diff(adjCheckIn)).asMilliseconds();
+                                        }
+
+                                        const maxRegMillis = MAX_REGULAR_HOURS_PER_DAY * 60 * 60 * 1000;
+                                        const regMillis = Math.min(totalCalculatedDurationMillis, maxRegMillis);
+                                        const ovtMillis = Math.max(0, totalCalculatedDurationMillis - maxRegMillis);
+
+                                        regularDurationHuman = moment.duration(regMillis).humanize();
+                                        if (ovtMillis > 0) {
+                                            overtimeDurationHuman = moment.duration(ovtMillis).humanize();
+                                        } else {
+                                            overtimeDurationHuman = '0m'; // 0 Minuten, wenn keine Überstunden
+                                        }
+                                    }
+                                %>
+                                <td class="py-2 px-4 border-b text-sm text-gray-800"><%= regularDurationHuman %></td>
+                                <td class="py-2 px-4 border-b text-sm text-gray-800"><%= overtimeDurationHuman %></td>
+                                <td class="py-2 px-4 border-b text-sm text-gray-800">
+                                    <% if (shift.check_in_latitude && shift.check_in_longitude) { %>
+                                        <span class="text-blue-600 hover:text-blue-800 clickable-coords" 
+                                              onclick="openMapModalByCoords('<%= userName %> - Check-in', <%= shift.check_in_latitude %>, <%= shift.check_in_longitude %>)">
+                                            <%= parseFloat(shift.check_in_latitude).toFixed(6) %>, <%= parseFloat(shift.check_in_longitude).toFixed(6) %>
+                                        </span>
+                                    <% } else { %>
+                                        -
+                                    <% } %>
+                                </td>
+                                <td class="py-2 px-4 border-b text-sm text-gray-800">
+                                    <% if (shift.check_out_latitude && shift.check_out_longitude) { %>
+                                        <span class="text-blue-600 hover:text-blue-800 clickable-coords" 
+                                              onclick="openMapModalByCoords('<%= userName %> - Check-out', <%= shift.check_out_latitude %>, <%= shift.check_out_longitude %>)">
+                                            <%= parseFloat(shift.check_out_latitude).toFixed(6) %>, <%= parseFloat(shift.check_out_longitude).toFixed(6) %>
+                                        </span>
+                                    <% } else { %>
+                                        -
+                                    <% } %>
+                                </td>
+                                <!-- Weitere Zellen nach Bedarf -->
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            <% } else { %>
+                <p class="text-center text-gray-500 py-4">Für diesen Mitarbeiter wurden keine Schichten gefunden.</p>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- Modal für die Karte -->
+    <div id="map-modal" class="modal">
+        <div class="modal-content" id="map-modal-content">
+            <span class="close-button" onclick="closeMapModal()">×</span>
+            <h3 id="map-modal-title">Einsatzort auf Karte</h3>
+            <div id="map-container" style="height: 500px; width: 100%; margin-top: 10px;">
+                Karte wird geladen...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Google Maps API Key vom Backend erhalten
+        const GOOGLE_MAPS_API_KEY = '<%= googleMapsApiKey %>';
+
+        // Referenzen für das Karten-Modal
+        const mapModal = document.getElementById('map-modal');
+        const mapModalTitle = document.getElementById('map-modal-title');
+        const mapContainer = document.getElementById('map-container');
+
+        // Schließt das Karten-Modal
+        function closeMapModal() {
+            mapModal.style.display = 'none';
+            mapContainer.innerHTML = 'Karte wird geladen...'; // Inhalt zurücksetzen
+        }
+
+        // Öffnet das Modal und zeigt die Karte anhand der Koordinaten an
+        function openMapModalByCoords(locationTitle, lat, lon) {
+             if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'DEIN_GOOGLE_MAPS_API_KEY') { // Fallback, falls der Key nicht übergeben wird
+                 alert('FEHLER: Bitte den Google Maps API Key in der .env-Datei setzen und an das Template übergeben!');
+                 return;
+            }
+            mapModalTitle.textContent = `Karte für ${locationTitle}`;
+            
+            // Google Maps Embed URL mit den Koordinaten
+            const embedUrl = `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${lat},${lon}&zoom=17`;
+            
+            mapContainer.innerHTML = `
+                <iframe
+                    width="100%"
+                    height="500"
+                    frameborder="0" style="border:0"
+                    src="${embedUrl}"
+                    allowfullscreen>
+                </iframe>
+            `;
+            mapModal.style.display = 'flex';
+        }
+
+        // Schließen des Modals beim Klicken außerhalb
+        window.onclick = function(event) {
+            if (event.target === mapModal) {
+                closeMapModal();
+            }
+        };
+    </script>
+</body>
+</html>
