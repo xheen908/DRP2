@@ -1,26 +1,20 @@
+// DRP2/shift-service/routes/shiftRoutes.js
 const express = require('express');
 const router = express.Router();
 const shiftController = require('../controllers/shiftController');
 
-// Abrufen aller Schichten
-router.get('/', shiftController.getAllShifts);
+// NEUE ROUTE für den Schicht-Check-in
+router.post('/checkin', shiftController.checkInShift);
 
-// Abrufen einer Schicht nach ID
-router.get('/:id', shiftController.getShiftById);
+// NEUE ROUTE für den Schicht-Check-out
+router.post('/checkout', shiftController.checkOutShift);
 
-// Abrufen von Schichten für einen bestimmten Benutzer
+// NEUE ROUTE zum Abrufen ALLER Schichten für einen bestimmten Benutzer (die user_shifts_view.ejs benötigt diese)
+// Achtung: Der Parameter ist jetzt employeeId, nicht mehr userId (obwohl es die gleiche ID ist)
 router.get('/user/:userId', shiftController.getShiftsByUserId);
 
-// Neuen Schicht erstellen
-router.post('/', shiftController.createShift);
-
-// Schicht aktualisieren
-router.put('/:id', shiftController.updateShift);
-
-// Schicht löschen
-router.delete('/:id', shiftController.deleteShift);
-
-// Mögliche Schicht-Status abrufen
-router.get('/statuses', shiftController.getShiftStatuses);
+// Die alten Routen (/, /:id, /statuses, etc.) aus der DRP2-Version sollten entfernt oder
+// an das neue Modell angepasst werden, falls sie noch benötigt werden.
+// Für die Wiederherstellung der ursprünglichen Logik sind sie irrelevant oder müssten umgeschrieben werden.
 
 module.exports = router;

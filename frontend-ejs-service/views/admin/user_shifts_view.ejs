@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Schichtübersicht für <%= userName %></title>
     <script src="https://cdn.tailwindcss.com"></script> <!-- Tailwind CSS CDN hinzufügen -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.34/moment-timezone-with-data-10-year-range.min.js"></script>
     <style>
         /* CSS für den Header wird hier belassen, da es global sein soll */
         body {
@@ -175,6 +177,7 @@
             const monthlySummary = {}; // Speichert { totalRegularMillis, totalOvertimeMillis } pro Monat
 
             shifts.forEach(shift => {
+                console.log('EJS Debug: Verarbeite Schicht für Monatsübersicht:', shift); // NEUE LOG-ZEILE
                 // Nur abgeschlossene Schichten mit Check-in und Check-out für die Übersicht berücksichtigen
                 if (shift.check_in_time && shift.check_out_time) {
                     let checkIn = moment(shift.check_in_time);
@@ -312,20 +315,28 @@
                                 <td class="py-2 px-4 border-b text-sm text-gray-800"><%= regularDurationHuman %></td>
                                 <td class="py-2 px-4 border-b text-sm text-gray-800"><%= overtimeDurationHuman %></td>
                                 <td class="py-2 px-4 border-b text-sm text-gray-800">
-                                    <% if (shift.check_in_latitude && shift.check_in_longitude) { %>
+                                    <% 
+                                        const inLat = parseFloat(shift.check_in_latitude);
+                                        const inLon = parseFloat(shift.check_in_longitude);
+                                    %>
+                                    <% if (shift.check_in_latitude != null && shift.check_in_longitude != null && !isNaN(inLat) && !isNaN(inLon)) { %>
                                         <span class="text-blue-600 hover:text-blue-800 clickable-coords" 
-                                              onclick="openMapModalByCoords('<%= userName %> - Check-in', <%= shift.check_in_latitude %>, <%= shift.check_in_longitude %>)">
-                                            <%= parseFloat(shift.check_in_latitude).toFixed(6) %>, <%= parseFloat(shift.check_in_longitude).toFixed(6) %>
+                                              onclick="openMapModalByCoords('<%= userName %> - Check-in', <%= inLat %>, <%= inLon %>)">
+                                            <%= inLat.toFixed(6) %>, <%= inLon.toFixed(6) %>
                                         </span>
                                     <% } else { %>
                                         -
                                     <% } %>
                                 </td>
                                 <td class="py-2 px-4 border-b text-sm text-gray-800">
-                                    <% if (shift.check_out_latitude && shift.check_out_longitude) { %>
+                                    <% 
+                                        const outLat = parseFloat(shift.check_out_latitude);
+                                        const outLon = parseFloat(shift.check_out_longitude);
+                                    %>
+                                    <% if (shift.check_out_latitude != null && shift.check_out_longitude != null && !isNaN(outLat) && !isNaN(outLon)) { %>
                                         <span class="text-blue-600 hover:text-blue-800 clickable-coords" 
-                                              onclick="openMapModalByCoords('<%= userName %> - Check-out', <%= shift.check_out_latitude %>, <%= shift.check_out_longitude %>)">
-                                            <%= parseFloat(shift.check_out_latitude).toFixed(6) %>, <%= parseFloat(shift.check_out_longitude).toFixed(6) %>
+                                              onclick="openMapModalByCoords('<%= userName %> - Check-out', <%= outLat %>, <%= outLon %>)">
+                                            <%= outLat.toFixed(6) %>, <%= outLon.toFixed(6) %>
                                         </span>
                                     <% } else { %>
                                         -

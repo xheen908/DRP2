@@ -28,6 +28,16 @@ app.get('/health', async (req, res) => {
     }
 });
 
+// NEUE FEHLERBEHANDLUNGS-MIDDLEWARE (nach allen Routen)
+app.use((err, req, res, next) => {
+    console.error('[Shift Service] Unbehandelter Fehler:', err.stack);
+    if (res.headersSent) {
+        return next(err);
+    }
+    res.status(500).json({ message: 'Shift Service: Ein interner Fehler ist aufgetreten!', error: err.message });
+});
+
+
 // Sequelize synchronisieren und Server starten
 sequelize.sync({ alter: false })
     .then(() => {

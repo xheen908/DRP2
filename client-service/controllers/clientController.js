@@ -117,3 +117,20 @@ exports.deleteClient = async (req, res) => {
         }
     }, ['Manager', 'Admin']);
 };
+
+// NEU: Clients für Dropdown abrufen (nur ID und Name)
+exports.getClientsForDropdown = async (req, res) => {
+    // Autorisierung: Nur Manager, Admin, Disponent dürfen Clients für Dropdown sehen
+    authorize(req, res, async () => {
+        try {
+            const clients = await Client.findAll({
+                attributes: ['id', 'name'], // Nur id und name abrufen
+                order: [['name', 'ASC']]    // Optional: Nach Namen sortieren
+            });
+            res.status(200).json(clients);
+        } catch (error) {
+            console.error('Fehler beim Abrufen von Clients für Dropdown:', error);
+            res.status(500).json({ message: 'Interner Serverfehler.' });
+        }
+    }, ['Manager', 'Admin', 'Disponent']);
+};

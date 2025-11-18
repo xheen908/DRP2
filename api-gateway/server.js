@@ -129,6 +129,8 @@ const setUserHeaders = (proxyReqOpts, originalReq) => {
     delete proxyReqOpts.headers['x-user-roles'];
     delete proxyReqOpts.headers['x-user-email'];
     delete proxyReqOpts.headers['x-user-username']; 
+    // WICHTIG: Auch vorhandenen Authorization-Header löschen, um Duplikate oder veraltete Tokens zu vermeiden
+    delete proxyReqOpts.headers['authorization'];
 
     if (originalReq.user) {
         proxyReqOpts.headers['X-User-ID'] = originalReq.user.id ? String(originalReq.user.id) : '';
@@ -137,6 +139,17 @@ const setUserHeaders = (proxyReqOpts, originalReq) => {
                                                 : originalReq.user.roles || '';
         proxyReqOpts.headers['X-User-Username'] = originalReq.user.username || ''; 
     }
+
+    // NEU: Authorization-Header weiterleiten, falls im Original-Request oder Cookie vorhanden
+    const originalAuthHeader = originalReq.headers['authorization'];
+    if (originalAuthHeader) {
+        proxyReqOpts.headers['Authorization'] = originalAuthHeader;
+        console.log(`[API Gateway Proxy Debug] Authorization Header (${originalAuthHeader.substring(0, 30)}...) an den Microservice weitergeleitet.`);
+    } else if (originalReq.cookies.jwt) {
+        proxyReqOpts.headers['Authorization'] = `Bearer ${originalReq.cookies.jwt}`;
+        console.log(`[API Gateway Proxy Debug] JWT-Cookie an den Microservice als Authorization Header weitergeleitet.`);
+    }
+
     return proxyReqOpts;
 };
 
@@ -150,10 +163,6 @@ app.use('/api/auth', httpProxy(AUTH_SERVICE_URL, {
 
 app.use('/api/users/roles', authenticateGateway, httpProxy(AUTH_SERVICE_URL, { 
     proxyReqPathResolver: req => {
-        // Die Route im Auth Service ist 'GET /roles'.
-        // req.url enthält den Teil des Pfades nach '/api/users/roles'. 
-        // Für '/api/users/roles' ist req.url leer. Für '/api/users/roles/xyz' wäre es '/xyz'.
-        // Wir wollen immer mit '/roles' beginnen und dann den Rest des Pfades anhängen.
         const resolvedPath = `/roles${req.url}`;
         console.log(`[API Gateway Proxy] /api/users/roles Proxy aktiv: Leite ${req.originalUrl} weiter als ${resolvedPath} an ${AUTH_SERVICE_URL}`);
         return resolvedPath;
@@ -163,39 +172,105 @@ app.use('/api/users/roles', authenticateGateway, httpProxy(AUTH_SERVICE_URL, {
 
 app.use('/api/users', authenticateGateway, httpProxy(AUTH_SERVICE_URL, { 
     proxyReqPathResolver: req => {
-        // Die Route im Auth Service ist 'GET /users'.
-        // req.url enthält den Teil des Pfades nach '/api/users'.
-        // Für '/api/users' ist req.url leer. Für '/api/users/123' wäre es '/123'.
-        // Wir wollen immer mit '/users' beginnen und dann den Rest des Pfades anhängen.
         const resolvedPath = `/users${req.url}`;
         console.log(`[API Gateway Proxy] /api/users Proxy aktiv: Leite ${req.originalUrl} weiter als ${resolvedPath} an ${AUTH_SERVICE_URL}`);
         return resolvedPath;
     },
     proxyReqOptDecorator: setUserHeaders
 }));
-// ENDE PROXY-REGELN
+// ENDE PROXY-REGELN FÜR USER
 
 app.use('/api/jobs', authenticateGateway, httpProxy(JOB_SERVICE_URL, {
     proxyReqPathResolver: req => req.url,
     proxyReqOptDecorator: setUserHeaders
 }));
 
-app.use('/api/shifts', authenticateGateway, httpProxy(SHIFT_SERVICE_URL, {
-    proxyReqPathResolver: req => req.url,
+// PROXY-REGELN FÜR SHIFT-ENDPUNKTE (Aktualisiert)
+// Stellen Sie sicher, dass spezifischere Routen vor allgemeineren stehen.
+
+// Proxy für Schichtstatus nach Benutzer-ID
+app.get('/api/shifts/status/:userId', authenticateGateway, httpProxy(SHIFT_SERVICE_URL, {
+    proxyReqPathResolver: req => `/api/shifts/status/${req.params.userId}`,
     proxyReqOptDecorator: setUserHeaders
 }));
 
+// Proxy für Check-in
+app.post('/api/shifts/checkin', authenticateGateway, httpProxy(SHIFT_SERVICE_URL, {
+    proxyReqPathResolver: req => `/api/shifts/checkin`, // Korrigierter Pfad
+    proxyReqOptDecorator: setUserHeaders
+}));
+
+// Proxy für Check-out
+app.post('/api/shifts/checkout', authenticateGateway, httpProxy(SHIFT_SERVICE_URL, {
+    proxyReqPathResolver: req => `/api/shifts/checkout`, // Korrigierter Pfad
+    proxyReqOptDecorator: setUserHeaders
+}));
+
+// Proxy für Schichten nach Benutzer-ID (wichtig für user_shifts_view.ejs)
+app.get('/api/shifts/user/:userId', authenticateGateway, httpProxy(SHIFT_SERVICE_URL, {
+    proxyReqPathResolver: req => `/api/shifts/user/${req.params.userId}`, // Korrigierter Pfad
+    proxyReqOptDecorator: setUserHeaders
+}));
+
+// Wenn Sie eine allgeme '/api/shifts' Route für DRP2-spezifische Funktionalität hatten,
+// die nicht mit den Check-in/Check-out Routen kollidiert, können Sie diese hier wieder hinzufügen.
+// Falls nicht, sind die spezifischen Routen ausreichend.
+// Beispiel (falls nötig, aber nicht Teil des Originalschemas):
+// app.use('/api/shifts', authenticateGateway, httpProxy(SHIFT_SERVICE_URL, {
+//     proxyReqPathResolver: req => req.url,
+//     proxyReqOptDecorator: setUserHeaders
+// }));
+
+
+// NEUE REGEL: Proxy für /api/locations/clients-for-dropdown an den Client Service
+// Dies muss VOR der allgemeineren '/api/locations' Regel stehen
+app.get('/api/locations/clients-for-dropdown', authenticateGateway, httpProxy(CLIENT_SERVICE_URL, {
+    proxyReqPathResolver: req => {
+        const resolvedPath = `/clients-for-dropdown`; // Der Client Service sollte diesen Pfad erwarten
+        console.log(`[API Gateway Proxy] Spezifische Proxy-Regel für /api/locations/clients-for-dropdown aktiv: Leite ${req.originalUrl} weiter als ${resolvedPath} an ${CLIENT_SERVICE_URL}`);
+        return resolvedPath;
+    },
+    proxyReqOptDecorator: setUserHeaders,
+    proxyErrorHandler: (err, res, next) => {
+        console.error(`[API Gateway Proxy Error] Fehler beim Weiterleiten von /api/locations/clients-for-dropdown-Anfrage an ${CLIENT_SERVICE_URL}:`, err.code, err.message);
+        if (!res.headersSent) {
+            if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                res.status(503).json({ message: `Client Service nicht verfügbar oder nicht erreichbar: ${err.message}` });
+            } else {
+                res.status(500).json({ message: `Proxy-Fehler beim Abrufen von Clients für Dropdown: ${err.message}` });
+            }
+        }
+    }
+}));
+
+// NEUE REGEL: Proxy für /api/locations/validate-company-location an den Location Service
+// Dies muss VOR der allgemeineren '/api/locations' Regel stehen
+app.post('/api/locations/validate-company-location', authenticateGateway, httpProxy(LOCATION_SERVICE_URL, {
+    proxyReqPathResolver: req => `/api/locations/validate-company-location`, // Der Location Service sollte diesen Pfad erwarten
+    proxyReqOptDecorator: setUserHeaders,
+    proxyErrorHandler: (err, res, next) => {
+        console.error(`[API Gateway Proxy Error] Fehler beim Weiterleiten von /api/locations/validate-company-location-Anfrage an ${LOCATION_SERVICE_URL}:`, err.code, err.message);
+        if (!res.headersSent) {
+            if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                res.status(503).json({ message: `Location Service nicht verfügbar oder nicht erreichbar: ${err.message}` });
+            } else {
+                res.status(500).json({ message: `Proxy-Fehler beim Validieren des Standorts: ${err.message}` });
+            }
+        }
+    }
+}));
+
+
 app.use('/api/locations', authenticateGateway, httpProxy(LOCATION_SERVICE_URL, {
     proxyReqPathResolver: (req) => {
-        // req.url in diesem Kontext ist der Pfad NACH '/api/locations' (z.B. '/client/1')
-        const resolvedPath = `/api/locations${req.url}`; // Rekonstruiere den vollständigen Pfad für den Ziel-Service
+        const resolvedPath = `/api/locations${req.url}`;
         console.log(`[API Gateway Proxy] /api/locations Proxy aktiv: Leite ${req.originalUrl} weiter als ${resolvedPath} an ${LOCATION_SERVICE_URL}`);
         return resolvedPath;
     },
     proxyReqOptDecorator: setUserHeaders,
     proxyErrorHandler: (err, res, next) => {
         console.error(`[API Gateway Proxy Error] Fehler beim Weiterleiten von /api/locations-Anfrage an ${LOCATION_SERVICE_URL}${req.url}:`, err.code, err.message);
-        if (!res.headersSent) { // Nur antworten, wenn noch keine Antwort gesendet wurde
+        if (!res.headersSent) {
             if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
                 res.status(503).json({ message: `Location Service nicht verfügbar oder nicht erreichbar: ${err.message}` });
             } else {
@@ -225,7 +300,7 @@ app.use('/public', httpProxy(FRONTEND_EJS_SERVICE_URL, {
     },
     proxyErrorHandler: (err, res, next) => {
         console.error(`[API Gateway Proxy Error] Fehler beim Weiterleiten von /public-Anfrage für ${FRONTEND_EJS_SERVICE_URL}${req.url}:`, err.code, err.message);
-        if (!res.headersSent) { // Nur antworten, wenn noch keine Antwort gesendet wurde
+        if (!res.headersSent) {
             if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
                 res.status(503).json({ message: `Service für statische Dateien nicht verfügbar oder nicht erreichbar: ${err.message}` });
             } else {
@@ -257,14 +332,15 @@ app.use('/', authenticateGateway, httpProxy(FRONTEND_EJS_SERVICE_URL, {
         return req.url;
     },
     proxyReqOptDecorator: (proxyReqOpts, originalReq) => {
+        // Hier rufen wir setUserHeaders auf, das jetzt den Authorization-Header korrekt propagiert
         proxyReqOpts = setUserHeaders(proxyReqOpts, originalReq);
+        
         proxyReqOpts.headers['X-Google-Maps-API-Key'] = GOOGLE_MAPS_API_KEY || '';
         return proxyReqOpts;
     },
     proxyErrorHandler: (err, res, next) => {
         console.error(`[API Gateway Proxy Error] Fehler beim Weiterleiten der generischen Frontend-Anfrage (${res.statusCode}):`, err.code, err.message);
         if (!res.headersSent) {
-            // Wenn ein Fehler auftritt, leiten wir auf /login um (oder zeigen eine Fehlerseite)
             res.redirect('/login?message=Verbindung zum Frontend-Service fehlgeschlagen.');
         }
     }

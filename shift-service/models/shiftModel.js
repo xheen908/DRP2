@@ -1,3 +1,4 @@
+// DRP2/shift-service/models/shiftModel.js
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/sequelize');
 
@@ -7,31 +8,46 @@ const Shift = sequelize.define('Shift', {
         autoIncrement: true,
         primaryKey: true,
     },
-    user_id: {
+    employee_id: { // Geändert von user_id zu employee_id
         type: DataTypes.INTEGER,
         allowNull: false,
     },
-    job_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-    },
-    start_time: {
+    check_in_time: {
         type: DataTypes.DATE,
         allowNull: false,
     },
-    end_time: {
+    check_in_latitude: {
+        type: DataTypes.DECIMAL(10, 7), // Passend zum SQL-Schema
+        allowNull: false,
+    },
+    check_in_longitude: {
+        type: DataTypes.DECIMAL(10, 7), // Passend zum SQL-Schema
+        allowNull: false,
+    },
+    badge_id_scanned: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
+    date: {
+        type: DataTypes.DATEONLY, // Nur Datum, z.B. 'YYYY-MM-DD'
+        allowNull: false,
+    },
+    check_out_time: {
         type: DataTypes.DATE,
-        allowNull: false,
+        allowNull: true, // Kann NULL sein, wenn die Schicht noch offen ist
     },
-    status: {
-        type: DataTypes.ENUM('PLANNED', 'ACTIVE', 'COMPLETED', 'CANCELLED'),
-        defaultValue: 'PLANNED',
-        allowNull: false,
+    check_out_latitude: {
+        type: DataTypes.DECIMAL(10, 7),
+        allowNull: true, // Kann NULL sein
     },
-    notes: {
-        type: DataTypes.TEXT,
-        allowNull: true,
+    check_out_longitude: {
+        type: DataTypes.DECIMAL(10, 7),
+        allowNull: true, // Kann NULL sein
     },
+    // created_at und updated_at werden von Sequelize automatisch verwaltet,
+    // wenn timestamps: true gesetzt ist.
+    // Wenn Sie sie explizit verwalten möchten (wie im DRP-Backend), lassen Sie timestamps: false und definieren Sie sie hier.
+    // Für Konsistenz mit DRP/drp_backend behalten wir die explizite Definition bei.
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
@@ -42,7 +58,7 @@ const Shift = sequelize.define('Shift', {
     },
 }, {
     tableName: 'shifts',
-    timestamps: false,
+    timestamps: false, // Setzen Sie dies auf false, wenn Sie created_at/updated_at manuell definieren
     createdAt: 'created_at',
     updatedAt: 'updated_at',
 });
