@@ -109,11 +109,32 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             position: relative;
         }
+        /* Spezielles Styling für das Client-Formular-Modal */
+        #client-form-modal .modal-content {
+            max-width: 483px; /* Angepasst (420px * 1.15) */
+            padding: 15px; /* Etwas weniger Padding */
+        }
+        #client-form-modal .modal-content h3 {
+            font-size: 1.25rem; /* Titel etwas kleiner */
+            margin-bottom: 1rem;
+        }
+        #client-form-modal .modal-content label {
+            font-size: 0.8rem; /* Labels noch etwas kleiner als text-sm */
+        }
+        #client-form-modal .modal-content input,
+        #client-form-modal .modal-content select,
+        #client-form-modal .modal-content textarea {
+            font-size: 0.9rem; /* Input-Felder etwas kleiner */
+            padding: 0.375rem 0.5rem; /* Weniger Padding für Inputs */
+        }
         .close-button {
             color: #aaa;
             float: right;
             font-size: 28px;
             font-weight: bold;
+            position: absolute;
+            top: 10px;
+            right: 20px;
         }
         .close-button:hover,
         .close-button:focus {
@@ -180,20 +201,29 @@
         .text-blue-600 { color: #2563eb; }
         .rounded { border-radius: 0.25rem; }
         .items-center { align-items: center; }
-        .content-container {
-            max-width: 1200px;
-            margin: 20px auto;
-            padding: 20px;
+        
+        /* Dashboard-Container-Stil (übernommen vom Dashboard) */
+        .dashboard-container {
             background-color: #fff;
+            padding: 30px;
+            margin: 20px auto; /* Behält 20px horizontalen Abstand */
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 1200px; /* Begrenzung wie im dashboard.ejs für den Container */
+        }
+        /* Überschrift im Container anpassen */
+        .dashboard-container h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em; /* Match h1 in dashboard.ejs */
+            font-weight: bold; /* Match h1 in dashboard.ejs */
         }
     </style>
 </head>
 <body>
     <%- include('../partials/header.ejs') %>
 
-    <div class="content-container">
+    <div class="dashboard-container">
         <h1>Kundenverwaltung</h1>
         <div id="client-list-container" class="overflow-x-auto">
             <p class="text-center text-gray-500 py-4">Kunden werden geladen...</p>
@@ -204,6 +234,7 @@
         <!-- Modal für Kunden erstellen/bearbeiten -->
         <div id="client-form-modal" class="modal">
             <div class="modal-content">
+                <span class="close-button" onclick="cancelClientForm()">×</span>
                 <h3 id="form-title">Kunden erstellen</h3>
                 <form id="client-form" class="space-y-4">
                     <div>
@@ -236,7 +267,6 @@
     </div>
 
     <script>
-        // Annahme: loggedInUser ist über EJS bereits verfügbar, wie in user_management.ejs
         const loggedInUser = <%- JSON.stringify(user) %>; 
         let allClients = [];
         let currentEditingClientId = null; 
@@ -337,6 +367,10 @@
             clientFormModal.style.display = 'flex'; // Modal anzeigen
         }
 
+        function cancelClientForm() {
+            clientFormModal.style.display = 'none'; // Modal verstecken
+        }
+
         function openEditClientModal(clientId) {
             const clientToEdit = allClients.find(client => client.id === clientId);
             if (!clientToEdit) {
@@ -355,9 +389,7 @@
             clientFormModal.style.display = 'flex'; // Modal anzeigen
         }
 
-        cancelClientFormButton.addEventListener('click', () => {
-            clientFormModal.style.display = 'none'; // Modal verstecken
-        });
+        cancelClientFormButton.addEventListener('click', cancelClientForm);
 
         clientForm.addEventListener('submit', async (event) => {
             event.preventDefault();
@@ -445,6 +477,12 @@
             }
         });
 
+        // Schließen des Modals beim Klicken außerhalb
+        window.onclick = function(event) {
+            if (event.target === clientFormModal) {
+                cancelClientForm();
+            }
+        }
     </script>
 </body>
 </html>
