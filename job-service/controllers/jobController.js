@@ -51,15 +51,15 @@ const fetchServiceData = async (url, token = null, requestHeaders = {}) => {
 
 // Alle Jobs abrufen
 exports.getAllJobs = async (req, res) => {
-    // Autorisierung: Manager/Admin/Disponent sehen alle Jobs, Monteure nur ihre eigenen
+    // Autorisierung: Manager/Admin/Disponent sehen alle Jobs, Reinigungskrafte nur ihre eigenen
     authorize(req, res, async () => {
         const userRoles = req.headers['x-user-roles'] ? req.headers['x-user-roles'].split(',') : [];
         const userId = req.headers['x-user-id']; // Vom Gateway übermittelte User ID
 
         let whereClause = {};
-        if (userRoles.includes('Monteur')) {
+        if (userRoles.includes('Monteur') || userRoles.includes('Reinigungskraft')) { // HINZUGEFÜGT: 'Reinigungskraft'
             if (!userId) {
-                return res.status(403).json({ message: 'Benutzer-ID fehlt für Monteur-Rolle.' });
+                return res.status(403).json({ message: 'Benutzer-ID fehlt für Monteur/Reinigungskraft-Rolle.' });
             }
             whereClause = { assigned_user_id: userId };
         } else if (!userRoles.some(role => ['Manager', 'Admin', 'Disponent'].includes(role))) {
@@ -71,16 +71,19 @@ exports.getAllJobs = async (req, res) => {
 
             // Daten von anderen Services aggregieren
             const jobDataPromises = jobs.map(async job => {
+                const jobJson = job.toJSON(); // Sequelize-Instanz zu Plain Object konvertieren
+
                 // req.headers an fetchServiceData übergeben
-                const clientPromise = job.client_id ? fetchServiceData(`${CLIENT_SERVICE_URL}/${job.client_id}`, null, req.headers) : Promise.resolve(null);
-                // HIER IST DIE KORREKTUR: Fügen Sie /api/locations hinzu
-                const locationPromise = job.location_id ? fetchServiceData(`${LOCATION_SERVICE_URL}/api/locations/${job.location_id}`, null, req.headers) : Promise.resolve(null);
-                const assignedUserPromise = job.assigned_user_id ? fetchServiceData(`${AUTH_SERVICE_URL}/users/${job.assigned_user_id}`, null, req.headers) : Promise.resolve(null);
+                const clientPromise = jobJson.client_id ? fetchServiceData(`${CLIENT_SERVICE_URL}/${jobJson.client_id}`, null, req.headers) : Promise.resolve(null);
+                const locationPromise = jobJson.location_id ? fetchServiceData(`${LOCATION_SERVICE_URL}/api/locations/${jobJson.location_id}`, null, req.headers) : Promise.resolve(null);
+                const assignedUserPromise = jobJson.assigned_user_id ? fetchServiceData(`${AUTH_SERVICE_URL}/users/${jobJson.assigned_user_id}`, null, req.headers) : Promise.resolve(null);
 
                 const [client, location, assignedUser] = await Promise.all([clientPromise, locationPromise, assignedUserPromise]);
 
                 return {
-                    ...job.toJSON(), // Konvertiert Sequelize-Instanz zu Plain Object
+                    ...jobJson,
+                    start_time: jobJson.planned_start_time, // Feld umbenennen für Frontend-Kompatibilität
+                    end_time: jobJson.planned_end_time,     // Feld umbenennen für Frontend-Kompatibilität
                     client_name: client ? client.name : null,
                     location_name: location ? location.name : null,
                     location_address: location ? location.address : null,
@@ -98,7 +101,7 @@ exports.getAllJobs = async (req, res) => {
             console.error('Fehler beim Abrufen aller Jobs:', error);
             res.status(500).json({ message: 'Interner Serverfehler beim Abrufen der Jobs.' });
         }
-    }, ['Manager', 'Admin', 'Disponent', 'Monteur']); // Alle diese Rollen dürfen zugreifen (mit Einschränkungen)
+    }, ['Manager', 'Admin', 'Disponent', 'Monteur', 'Reinigungskraft']); // Alle diese Rollen dürfen zugreifen (mit Einschränkungen)
 };
 
 // Job nach ID abrufen
@@ -119,17 +122,19 @@ exports.getJobById = async (req, res) => {
                  return res.status(403).json({ message: 'Keine Berechtigung, diesen Job zu sehen.' });
             }
 
+            const jobJson = job.toJSON(); // Sequelize-Instanz zu Plain Object konvertieren
+
             // Daten von anderen Services aggregieren
-            // req.headers an fetchServiceData übergeben
-            const clientPromise = fetchServiceData(`${CLIENT_SERVICE_URL}/${job.client_id}`, null, req.headers);
-            // HIER IST DIE KORREKTUR: Fügen Sie /api/locations hinzu
-            const locationPromise = fetchServiceData(`${LOCATION_SERVICE_URL}/api/locations/${job.location_id}`, null, req.headers);
-            const assignedUserPromise = job.assigned_user_id ? fetchServiceData(`${AUTH_SERVICE_URL}/users/${job.assigned_user_id}`, null, req.headers) : Promise.resolve(null);
+            const clientPromise = fetchServiceData(`${CLIENT_SERVICE_URL}/${jobJson.client_id}`, null, req.headers);
+            const locationPromise = fetchServiceData(`${LOCATION_SERVICE_URL}/api/locations/${jobJson.location_id}`, null, req.headers);
+            const assignedUserPromise = jobJson.assigned_user_id ? fetchServiceData(`${AUTH_SERVICE_URL}/users/${jobJson.assigned_user_id}`, null, req.headers) : Promise.resolve(null);
 
             const [client, location, assignedUser] = await Promise.all([clientPromise, locationPromise, assignedUserPromise]);
 
             res.status(200).json({
-                ...job.toJSON(),
+                ...jobJson,
+                start_time: jobJson.planned_start_time, // Feld umbenennen für Frontend-Kompatibilität
+                end_time: jobJson.planned_end_time,     // Feld umbenennen für Frontend-Kompatibilität
                 client_name: client ? client.name : null,
                 location_name: location ? location.name : null,
                 location_address: location ? location.address : null,
@@ -140,7 +145,7 @@ exports.getJobById = async (req, res) => {
             console.error('Fehler beim Abrufen des Jobs:', error);
             res.status(500).json({ message: 'Interner Serverfehler.' });
         }
-    }, ['Manager', 'Admin', 'Disponent', 'Monteur']);
+    }, ['Manager', 'Admin', 'Disponent', 'Monteur', 'Reinigungskraft']);
 };
 
 
@@ -155,8 +160,6 @@ exports.createJob = async (req, res) => {
 
         try {
             // Validieren, ob Location existiert und Client-ID von Location holen
-            // req.headers an fetchServiceData übergeben
-            // HIER IST DIE KORREKTUR: Fügen Sie /api/locations hinzu
             const location = await fetchServiceData(`${LOCATION_SERVICE_URL}/api/locations/${location_id}`, null, req.headers);
             if (!location) {
                 return res.status(404).json({ message: 'Einsatzort nicht gefunden.' });
@@ -165,7 +168,6 @@ exports.createJob = async (req, res) => {
 
             // Optional: Prüfen, ob der zugewiesene Benutzer existiert
             if (assigned_user_id) {
-                // req.headers an fetchServiceData übergeben
                 const assignedUser = await fetchServiceData(`${AUTH_SERVICE_URL}/users/${assigned_user_id}`, null, req.headers);
                 if (!assignedUser) {
                     return res.status(404).json({ message: 'Zugewiesener Benutzer nicht gefunden.' });
@@ -184,7 +186,16 @@ exports.createJob = async (req, res) => {
                 status: 'PENDING' // Neuer Job startet immer als PENDING
             });
 
-            res.status(201).json({ message: 'Job erfolgreich erstellt.', job: newJob });
+            // Rückgabe des neuen Jobs mit umbenannten Feldern
+            const newJobJson = newJob.toJSON();
+            res.status(201).json({ 
+                message: 'Job erfolgreich erstellt.', 
+                job: {
+                    ...newJobJson,
+                    start_time: newJobJson.planned_start_time,
+                    end_time: newJobJson.planned_end_time,
+                }
+            });
         } catch (error) {
             console.error('Fehler beim Erstellen des Jobs:', error);
             if (error.message.includes('Validation error')) {
@@ -230,8 +241,6 @@ exports.updateJob = async (req, res) => {
 
             // Validieren, ob Location existiert (wenn location_id geändert wurde)
             if (location_id && location_id !== job.location_id) {
-                // req.headers an fetchServiceData übergeben
-                // HIER IST DIE KORREKTUR: Fügen Sie /api/locations hinzu
                 const location = await fetchServiceData(`${LOCATION_SERVICE_URL}/api/locations/${location_id}`, null, req.headers);
                 if (!location) {
                     return res.status(404).json({ message: 'Einsatzort nicht gefunden.' });
@@ -241,7 +250,6 @@ exports.updateJob = async (req, res) => {
 
             // Optional: Prüfen, ob der zugewiesene Benutzer existiert
             if (assigned_user_id && assigned_user_id !== job.assigned_user_id) {
-                // req.headers an fetchServiceData übergeben
                 const assignedUser = await fetchServiceData(`${AUTH_SERVICE_URL}/users/${assigned_user_id}`, null, req.headers);
                 if (!assignedUser) {
                     return res.status(404).json({ message: 'Zugewiesener Benutzer nicht gefunden.' });
@@ -291,23 +299,201 @@ exports.getJobStatuses = async (req, res) => {
     // Jeder authentifizierte Benutzer darf die Status abrufen
     authorize(req, res, async () => {
         // Status sind im ENUM definiert, direkt aus dem Modell holen
-        // NEU: Zugriff auf die Enumerationswerte der 'status'-Spalte über das Sequelize-Model
         const statuses = Job.rawAttributes.status.values;
         res.status(200).json(statuses);
-    }, ['Manager', 'Admin', 'Disponent', 'Monteur']);
+    }, ['Manager', 'Admin', 'Disponent', 'Monteur', 'Reinigungskraft']);
 };
 
 // NEU: Benutzer für die Zuweisung abrufen (Auth Service)
 exports.getUsersForAssignment = async (req, res) => {
     authorize(req, res, async () => {
         try {
-            // req.headers an fetchServiceData übergeben
             const users = await fetchServiceData(`${AUTH_SERVICE_URL}/users`, null, req.headers);
-            // Filtern oder Anpassen der Benutzerliste, falls nötig (z.B. nur aktive Benutzer)
             res.status(200).json(users);
         } catch (error) {
             console.error('Fehler beim Abrufen der Benutzer für die Zuweisung:', error);
             res.status(500).json({ message: 'Interner Serverfehler beim Abrufen der Benutzer.' });
         }
     }, ['Manager', 'Admin', 'Disponent']); // Diese Rollen dürfen Benutzer für Zuweisung sehen
+};
+
+// NEU: Ruft den nächsten anstehenden oder in Bearbeitung befindlichen Job für einen Mitarbeiter ab
+exports.getNextJobForEmployee = async (req, res) => {
+    authorize(req, res, async () => {
+        const { employeeId } = req.params;
+        const userRoles = req.headers['x-user-roles'] ? req.headers['x-user-roles'].split(',') : [];
+        const userId = req.headers['x-user-id'];
+
+        // Autorisierung: Mitarbeiter darf nur seine eigenen Jobs abrufen. Manager/Admin/Disponent dürfen alle sehen
+        if (!(userRoles.includes('Manager') || userRoles.includes('Admin') || userRoles.includes('Disponent')) && userId != employeeId) {
+            return res.status(403).json({ message: 'Keine Berechtigung, Jobs anderer Benutzer abzurufen.' });
+        }
+
+        try {
+            const nextJob = await Job.findOne({
+                where: {
+                    assigned_user_id: employeeId,
+                    status: {
+                        [Op.in]: ['PENDING', 'IN_PROGRESS'] // Nur ausstehende oder laufende Jobs
+                    },
+                },
+                order: [
+                    ['status', 'ASC'], // PENDING vor IN_PROGRESS
+                    ['planned_start_time', 'ASC'], // Ältere Jobs zuerst
+                    ['id', 'ASC'] // Als Fallback
+                ]
+            });
+
+            if (!nextJob) {
+                return res.status(404).json({ message: 'Kein nächster Job für diesen Mitarbeiter gefunden.' });
+            }
+
+            const nextJobJson = nextJob.toJSON(); // Sequelize-Instanz zu Plain Object konvertieren
+
+            // Daten von anderen Services aggregieren (wie in getAllJobs/getJobById)
+            const clientPromise = nextJobJson.client_id ? fetchServiceData(`${CLIENT_SERVICE_URL}/${nextJobJson.client_id}`, null, req.headers) : Promise.resolve(null);
+            const locationPromise = nextJobJson.location_id ? fetchServiceData(`${LOCATION_SERVICE_URL}/api/locations/${nextJobJson.location_id}`, null, req.headers) : Promise.resolve(null);
+            const assignedUserPromise = nextJobJson.assigned_user_id ? fetchServiceData(`${AUTH_SERVICE_URL}/users/${nextJobJson.assigned_user_id}`, null, req.headers) : Promise.resolve(null);
+
+            const [client, location, assignedUser] = await Promise.all([clientPromise, locationPromise, assignedUserPromise]);
+
+            const aggregatedJob = {
+                ...nextJobJson,
+                start_time: nextJobJson.planned_start_time, // Feld umbenennen für Frontend-Kompatibilität
+                end_time: nextJobJson.planned_end_time,     // Feld umbenennen für Frontend-Kompatibilität
+                client_name: client ? client.name : null,
+                location_name: location ? location.name : null,
+                location_address: location ? location.address : null,
+                location_latitude: location ? location.latitude : null,
+                location_longitude: location ? location.longitude : null,
+                location_nfc_tag_id: location ? location.nfc_tag_id : null,
+                assigned_to_username: assignedUser ? assignedUser.full_name : null,
+                assigned_to_user_pin: assignedUser ? assignedUser.pin : null,
+            };
+
+            res.status(200).json(aggregatedJob);
+
+        } catch (error) {
+            console.error('Fehler beim Abrufen des nächsten Jobs für Mitarbeiter:', error);
+            res.status(500).json({ message: 'Interner Serverfehler beim Abrufen des nächsten Jobs.' });
+        }
+    }, ['Manager', 'Admin', 'Disponent', 'Monteur', 'Reinigungskraft']); // Alle relevanten Rollen
+};
+
+// NEU: Startet einen Job und aktualisiert dessen Status auf 'IN_PROGRESS'.
+exports.startJob = async (req, res) => {
+    authorize(req, res, async () => {
+        const { jobId } = req.params;
+        const { employee_id, location_barcode, check_in_latitude, check_in_longitude } = req.body;
+        const userId = req.headers['x-user-id']; // Aus dem Authentifizierungstoken
+
+        // Stellen Sie sicher, dass der angefragte employee_id mit dem authentifizierten Benutzer übereinstimmt.
+        if (parseInt(employee_id) !== parseInt(userId)) {
+            return res.status(403).json({ message: 'Sie sind nicht berechtigt, diesen Job zu starten.' });
+        }
+
+        // Grundlegende Validierung der Eingangsdaten
+        if (!jobId || !employee_id || !location_barcode || !check_in_latitude || !check_in_longitude) {
+            return res.status(400).json({ message: 'Fehlende Job-Start-Daten.' });
+        }
+
+        try {
+            const job = await Job.findByPk(jobId);
+
+            if (!job) {
+                return res.status(404).json({ message: 'Job nicht gefunden.' });
+            }
+
+            // Überprüfen, ob der Job dem Mitarbeiter zugewiesen ist und den Status 'PENDING' oder 'ASSIGNED' hat.
+            if (job.assigned_user_id !== parseInt(employee_id) || (job.status !== 'PENDING' && job.status !== 'ASSIGNED')) {
+                return res.status(400).json({ message: 'Job kann nicht gestartet werden: Nicht zugewiesen oder bereits gestartet/abgeschlossen.' });
+            }
+
+            // NFC-Tag der Location abrufen
+            const location = await fetchServiceData(`${LOCATION_SERVICE_URL}/api/locations/${job.location_id}`, null, req.headers);
+            if (!location || location.nfc_tag_id !== location_barcode) {
+                return res.status(400).json({ message: 'Falscher Location Barcode. Job kann nicht gestartet werden.' });
+            }
+
+            job.status = 'IN_PROGRESS';
+            job.actual_start_time = new Date();
+            job.check_in_latitude = check_in_latitude;
+            job.check_in_longitude = check_in_longitude;
+            await job.save();
+
+            // Rückgabe des aktualisierten Jobs mit umbenannten Feldern
+            const updatedJobJson = job.toJSON();
+            res.status(200).json({ 
+                message: 'Job erfolgreich gestartet!', 
+                job: {
+                    ...updatedJobJson,
+                    start_time: updatedJobJson.planned_start_time,
+                    end_time: updatedJobJson.planned_end_time,
+                }
+            });
+
+        } catch (error) {
+            console.error(`Fehler beim Starten des Jobs ${jobId} für Mitarbeiter ${employee_id}:`, error);
+            res.status(500).json({ message: 'Interner Serverfehler beim Starten des Jobs.' });
+        }
+    }, ['Monteur', 'Reinigungskraft']); // Nur Monteure und Reinigungskräfte dürfen Jobs starten
+};
+
+// NEU: Beendet einen Job und aktualisiert dessen Status auf 'COMPLETED'.
+exports.endJob = async (req, res) => {
+    authorize(req, res, async () => {
+        const { jobId } = req.params;
+        const { employee_id, location_barcode, check_out_latitude, check_out_longitude } = req.body;
+        const userId = req.headers['x-user-id']; // Aus dem Authentifizierungstoken
+
+        // Stellen Sie sicher, dass der angefragte employee_id mit dem authentifizierten Benutzer übereinstimmt.
+        if (parseInt(employee_id) !== parseInt(userId)) {
+            return res.status(403).json({ message: 'Sie sind nicht berechtigt, diesen Job zu beenden.' });
+        }
+
+        // Grundlegende Validierung der Eingangsdaten
+        if (!jobId || !employee_id || !location_barcode || !check_out_latitude || !check_out_longitude) {
+            return res.status(400).json({ message: 'Fehlende Job-End-Daten.' });
+        }
+
+        try {
+            const job = await Job.findByPk(jobId);
+
+            if (!job) {
+                return res.status(404).json({ message: 'Job nicht gefunden.' });
+            }
+
+            // Überprüfen, ob der Job dem Mitarbeiter zugewiesen ist und den Status 'IN_PROGRESS' hat.
+            if (job.assigned_user_id !== parseInt(employee_id) || job.status !== 'IN_PROGRESS') {
+                return res.status(400).json({ message: 'Job kann nicht beendet werden: Nicht zugewiesen oder nicht im Status "IN_PROGRESS".' });
+            }
+
+            // NFC-Tag der Location abrufen
+            const location = await fetchServiceData(`${LOCATION_SERVICE_URL}/api/locations/${job.location_id}`, null, req.headers);
+            if (!location || location.nfc_tag_id !== location_barcode) {
+                return res.status(400).json({ message: 'Falscher Location Barcode. Job kann nicht beendet werden.' });
+            }
+
+            job.status = 'COMPLETED';
+            job.actual_end_time = new Date();
+            job.check_out_latitude = check_out_latitude;
+            job.check_out_longitude = check_out_longitude;
+            await job.save();
+
+            // Rückgabe des aktualisierten Jobs mit umbenannten Feldern
+            const updatedJobJson = job.toJSON();
+            res.status(200).json({ 
+                message: 'Job erfolgreich beendet!', 
+                job: {
+                    ...updatedJobJson,
+                    start_time: updatedJobJson.planned_start_time,
+                    end_time: updatedJobJson.planned_end_time,
+                }
+            });
+
+        } catch (error) {
+            console.error(`Fehler beim Beenden des Jobs ${jobId} für Mitarbeiter ${employee_id}:`, error);
+            res.status(500).json({ message: 'Interner Serverfehler beim Beenden des Jobs.' });
+        }
+    }, ['Monteur', 'Reinigungskraft']); // Nur Monteure und Reinigungskräfte dürfen Jobs beenden
 };

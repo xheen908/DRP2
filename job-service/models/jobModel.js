@@ -38,7 +38,7 @@ const Job = sequelize.define('Job', {
     },
     status: {
         // Hinzugefügt: 'Offen' und 'Abgeschlossen' für Kompatibilität mit bestehenden Daten
-        type: DataTypes.ENUM('PENDING', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'CANCELED', 'ON_HOLD', 'Offen', 'Abgeschlossen'),
+        type: DataTypes.ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED'),
         allowNull: false,
         defaultValue: 'PENDING'
     },
@@ -47,7 +47,7 @@ const Job = sequelize.define('Job', {
         allowNull: true,
         get() {
             const rawValue = this.getDataValue('planned_start_time');
-            return rawValue ? moment(rawValue).format('YYYY-MM-DD HH:mm:ss') : null;
+            return rawValue ? moment(rawValue).toISOString() : null; // GEÄNDERT: Zu ISO-String
         }
     },
     planned_end_time: {
@@ -55,7 +55,7 @@ const Job = sequelize.define('Job', {
         allowNull: true,
         get() {
             const rawValue = this.getDataValue('planned_end_time');
-            return rawValue ? moment(rawValue).format('YYYY-MM-DD HH:mm:ss') : null;
+            return rawValue ? moment(rawValue).toISOString() : null; // GEÄNDERT: Zu ISO-String
         }
     },
     actual_start_time: {
@@ -63,7 +63,7 @@ const Job = sequelize.define('Job', {
         allowNull: true,
         get() {
             const rawValue = this.getDataValue('actual_start_time');
-            return rawValue ? moment(rawValue).format('YYYY-MM-DD HH:mm:ss') : null;
+            return rawValue ? moment(rawValue).toISOString() : null; // GEÄNDERT: Zu ISO-String
         }
     },
     actual_end_time: {
@@ -71,8 +71,32 @@ const Job = sequelize.define('Job', {
         allowNull: true,
         get() {
             const rawValue = this.getDataValue('actual_end_time');
-            return rawValue ? moment(rawValue).format('YYYY-MM-DD HH:mm:ss') : null;
+            return rawValue ? moment(rawValue).toISOString() : null; // GEÄNDERT: Zu ISO-String
         }
+    },
+    before_photo_url: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    after_photo_url: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    check_in_latitude: {
+        type: DataTypes.DECIMAL(10, 8),
+        allowNull: true,
+    },
+    check_in_longitude: {
+        type: DataTypes.DECIMAL(11, 8),
+        allowNull: true,
+    },
+    check_out_latitude: {
+        type: DataTypes.DECIMAL(10, 8),
+        allowNull: true,
+    },
+    check_out_longitude: {
+        type: DataTypes.DECIMAL(11, 8),
+        allowNull: true,
     }
 }, {
     tableName: 'jobs',

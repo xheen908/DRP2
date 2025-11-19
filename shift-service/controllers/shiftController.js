@@ -120,7 +120,7 @@ exports.checkOutShift = async (req, res) => {
             // Optional: Verifikation der gescannten Badge-ID (falls gewünscht)
             // if (existingOpenShift.badge_id_scanned !== badge_id_scanned) {
             //     return res.status(401).json({ message: 'Fehler: Gescanntes Badge stimmt nicht mit Check-in-Badge überein.' });
-            // }\
+            // }
 
             const formatted_check_out_time = moment(check_out_time).tz('Europe/Berlin').format('YYYY-MM-DD HH:mm:ss');
 

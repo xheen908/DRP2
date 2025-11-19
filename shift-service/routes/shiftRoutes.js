@@ -13,6 +13,9 @@ router.post('/checkout', shiftController.checkOutShift);
 // Achtung: Der Parameter ist jetzt employeeId, nicht mehr userId (obwohl es die gleiche ID ist)
 router.get('/user/:userId', shiftController.getShiftsByUserId);
 
+// NEUE ROUTE zum Abrufen des aktuellen Schichtstatus eines Benutzers (für die mobile App)
+router.get('/status/:userId', shiftController.getCurrentShiftStatus); // DIESE ZEILE HINZUFÜGEN
+
 // Die alten Routen (/, /:id, /statuses, etc.) aus der DRP2-Version sollten entfernt oder
 // an das neue Modell angepasst werden, falls sie noch benötigt werden.
 // Für die Wiederherstellung der ursprünglichen Logik sind sie irrelevant oder müssten umgeschrieben werden.

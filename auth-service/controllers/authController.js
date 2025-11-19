@@ -208,7 +208,8 @@ exports.getAllUsers = async (req, res) => {
 exports.getUserById = async (req, res) => {
     const { id } = req.params;
     const userRoles = req.headers['x-user-roles'] ? req.headers['x-user-roles'].split(',') : [];
-    if (!userRoles.includes('Manager')) {
+    // HINZUGEFÜGT: 'Monteur' und 'Reinigungskraft' dürfen auch ihre eigenen oder zugeordnete Benutzerdetails abrufen.
+    if (!userRoles.some(role => ['Manager', 'Admin', 'Disponent', 'Monteur', 'Reinigungskraft'].includes(role))) {
         return res.status(403).json({ message: 'Keine Berechtigung, Benutzerdetails abzurufen.' });
     }
 
@@ -316,7 +317,7 @@ exports.getAllRoles = async (req, res) => {
     // Jeder authentifizierte Benutzer kann Rollen abrufen, um z.B. Dropdowns zu füllen.
     // Wenn nur Manager Rollen sehen sollen, hier prüfen:
     // const userRoles = req.headers['x-user-roles'] ? req.headers['x-user-roles'].split(',') : [];
-    // if (!userRoles.includes('Manager')) { return res.status(403).json({ message: 'Keine Berechtigung.' }); }
+    // if (!userRoles.includes('Manager')) { return res.status(403).json({ message: 'Keine Berechtigung.' }); }\
 
     try {
         const roles = await Role.findAll({ attributes: ['id', 'name'] });
@@ -331,7 +332,7 @@ exports.getAllRoles = async (req, res) => {
 exports.getUsersForAssignment = async (req, res) => {
     // Optional: Autorisierung, z.B. nur Disponenten/Manager dürfen diese Liste sehen
     const userRoles = req.headers['x-user-roles'] ? req.headers['x-user-roles'].split(',') : [];
-    if (!userRoles.some(role => ['Manager', 'Admin', 'Disponent', 'Monteur'].includes(role))) {
+    if (!userRoles.some(role => ['Manager', 'Admin', 'Disponent', 'Monteur', 'Reinigungskraft'].includes(role))) { // HINZUGEFÜGT: 'Reinigungskraft'
         return res.status(403).json({ message: 'Keine Berechtigung, Benutzer für Zuweisung abzurufen.' });
     }
 

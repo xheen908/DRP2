@@ -18,7 +18,7 @@ const authorize = (req, res, next, requiredRoles) => {
 
 // Alle Clients abrufen
 exports.getAllClients = async (req, res) => {
-    // Autorisierung: Nur Manager, Admin, Disponent dürfen Clients sehen
+    // Autorisierung: Manager, Admin, Disponent und Reinigungskraft dürfen Clients sehen
     authorize(req, res, async () => {
         try {
             const clients = await Client.findAll();
@@ -27,12 +27,12 @@ exports.getAllClients = async (req, res) => {
             console.error('Fehler beim Abrufen aller Clients:', error);
             res.status(500).json({ message: 'Interner Serverfehler.' });
         }
-    }, ['Manager', 'Admin', 'Disponent']);
+    }, ['Manager', 'Admin', 'Disponent', 'Reinigungskraft']); // HINZUGEFÜGT: 'Reinigungskraft'
 };
 
 // Client nach ID abrufen
 exports.getClientById = async (req, res) => {
-    // Autorisierung: Nur Manager, Admin, Disponent dürfen Clients sehen
+    // Autorisierung: Manager, Admin, Disponent und Reinigungskraft dürfen Clients sehen
     authorize(req, res, async () => {
         const { id } = req.params;
         try {
@@ -45,7 +45,7 @@ exports.getClientById = async (req, res) => {
             console.error('Fehler beim Abrufen des Clients:', error);
             res.status(500).json({ message: 'Interner Serverfehler.' });
         }
-    }, ['Manager', 'Admin', 'Disponent']);
+    }, ['Manager', 'Admin', 'Disponent', 'Reinigungskraft']); // HINZUGEFÜGT: 'Reinigungskraft'
 };
 
 // Neuen Client erstellen

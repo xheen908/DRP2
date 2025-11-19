@@ -57,6 +57,24 @@ const fetchServiceData = async (url, requestHeaders = {}) => {
     }
 };
 
+// Hilfsfunktion zur Berechnung der Distanz zwischen zwei GPS-Punkten (Haversine-Formel)
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // Meter
+    const φ1 = lat1 * Math.PI / 180; // φ, λ in Radian
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    const d = R * c; // Distanz in Metern
+    return d;
+};
+
+
 // Alle Standorte abrufen
 exports.getAllLocations = async (req, res) => {
     authorize(req, res, async () => {
@@ -98,7 +116,7 @@ exports.getAllLocations = async (req, res) => {
             console.error('[getAllLocations] Fehler beim Abrufen aller Standorte:', error);
             res.status(500).json({ message: 'Interner Serverfehler beim Abrufen der Standorte.' });
         }
-    }, ['Manager', 'Admin', 'Disponent', 'Monteur']);
+    }, ['Manager', 'Admin', 'Disponent', 'Monteur', 'Reinigungskraft']); // HINZUGEFÜGT: 'Reinigungskraft'
 };
 
 // Standort nach ID abrufen
@@ -141,7 +159,7 @@ exports.getLocationById = async (req, res) => {
             console.error('[getLocationById] Fehler beim Abrufen des Standortes:', error);
             res.status(500).json({ message: 'Interner Serverfehler.' });
         }
-    }, ['Manager', 'Admin', 'Disponent', 'Monteur']);
+    }, ['Manager', 'Admin', 'Disponent', 'Monteur', 'Reinigungskraft']); // HINZUGEFÜGT: 'Reinigungskraft'
 };
 
 
@@ -183,7 +201,7 @@ exports.getLocationsByClientId = async (req, res) => {
             console.error(`[getLocationsByClientId] Fehler beim Abrufen von Standorten für Client ${clientId}:`, error);
             res.status(500).json({ message: 'Interner Serverfehler.' });
         }
-    }, ['Manager', 'Admin', 'Disponent', 'Monteur']);
+    }, ['Manager', 'Admin', 'Disponent', 'Monteur', 'Reinigungskraft']); // HINZUGEFÜGT: 'Reinigungskraft'
 };
 
 // Standorte und deren Clients für Dropdowns (z.B. in der Job-Erstellung)
@@ -348,7 +366,6 @@ exports.deleteLocation = async (req, res) => {
                 return res.status(404).json({ message: 'Standort nicht gefunden.' });
             }
             await location.destroy();
-            console.log(`[deleteLocation] Standort ${id} erfolgreich gelöscht.`);
             res.status(200).json({ message: 'Standort erfolgreich gelöscht.' });
         } catch (error) {
             console.error('[deleteLocation] Fehler beim Löschen des Standortes:', error);
@@ -401,4 +418,74 @@ exports.getLocationsForMap = async (req, res) => {
             res.status(500).json({ message: 'Interner Serverfehler beim Abrufen der Standorte für die Karte.' });
         }
     }, ['Manager', 'Admin', 'Disponent', 'Monteur']);
+};
+
+// NEU: Validiert, ob sich der Benutzer an einem registrierten Firmenstandort befindet
+exports.validateCompanyLocation = async (req, res) => {
+    console.log(`[validateCompanyLocation] Anfrage erhalten für Standortvalidierung.`);
+    
+    authorize(req, res, async () => {
+        const { latitude, longitude } = req.body;
+
+        if (typeof latitude === 'undefined' || typeof longitude === 'undefined') {
+            console.warn('[validateCompanyLocation] Breitengrad und Längengrad sind erforderlich, aber fehlten.');
+            return res.status(400).json({ message: 'Breitengrad und Längengrad sind erforderlich.' });
+        }
+
+        try {
+            const companyLocations = await Location.findAll({
+                where: {
+                    latitude: { [Op.ne]: null },
+                    longitude: { [Op.ne]: null }
+                },
+                attributes: ['id', 'name', 'address', 'latitude', 'longitude']
+            });
+
+            const userLat = parseFloat(latitude);
+            const userLon = parseFloat(longitude);
+            const detectionRadius = 100; // Radius in Metern, innerhalb dessen der Standort als gültig gilt
+
+            let isValid = false;
+            let foundCompanyName = 'Unbekannt';
+            let foundCompanyAddress = 'Unbekannt';
+
+            for (const loc of companyLocations) {
+                const companyLat = parseFloat(loc.latitude);
+                const companyLon = parseFloat(loc.longitude);
+
+                const distance = calculateDistance(userLat, userLon, companyLat, companyLon);
+
+                console.log(`[validateCompanyLocation] Distanz zum Standort "${loc.name}" (${loc.latitude}, ${loc.longitude}): ${distance.toFixed(2)}m`);
+
+                if (distance <= detectionRadius) {
+                    isValid = true;
+                    foundCompanyName = loc.name;
+                    foundCompanyAddress = loc.address;
+                    break;
+                }
+            }
+
+            if (isValid) {
+                console.log(`[validateCompanyLocation] Standort validiert: Benutzer befindet sich in der Nähe von "${foundCompanyName}".`);
+                res.status(200).json({
+                    isValid: true,
+                    message: `Sie befinden sich am Standort: ${foundCompanyName}.`,
+                    companyName: foundCompanyName,
+                    companyAddress: foundCompanyAddress,
+                });
+            } else {
+                console.log('[validateCompanyLocation] Standort nicht validiert: Benutzer befindet sich nicht in der Nähe eines registrierten Firmenstandorts.');
+                res.status(200).json({
+                    isValid: false,
+                    message: 'Sie befinden sich nicht an einem registrierten Firmenstandort.',
+                    companyName: null,
+                    companyAddress: null,
+                });
+            }
+
+        } catch (error) {
+            console.error('[validateCompanyLocation] FEHLER beim Validieren des Firmenstandorts:', error.message, error.stack);
+            res.status(500).json({ message: 'Interner Serverfehler bei der Standortvalidierung.' });
+        }
+    }, ['Monteur', 'Reinigungskraft', 'Manager', 'Admin', 'Disponent']); // Alle relevanten Rollen
 };

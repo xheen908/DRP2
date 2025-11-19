@@ -6,6 +6,9 @@ console.log('Location Routen initialisieren...');
 console.log('Typ von locationController in locationRoutes.js:', typeof locationController);
 console.log('locationController.getAllLocations ist:', typeof locationController.getAllLocations);
 
+// NEUE ROUTE: Standort des Unternehmens validieren (für mobile App)
+router.post('/validate-company-location', locationController.validateCompanyLocation);
+
 // Abrufen aller Standorte (für Manager, Admin, Disponent, Monteur)
 router.get('/', (req, res, next) => { console.log('[Route] GET /api/locations - Alle Standorte abrufen'); next(); }, locationController.getAllLocations);
 
