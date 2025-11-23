@@ -16,6 +16,7 @@ const SHIFT_SERVICE_URL = process.env.SHIFT_SERVICE_URL;
 const LOCATION_SERVICE_URL = process.env.LOCATION_SERVICE_URL;
 const CLIENT_SERVICE_URL = process.env.CLIENT_SERVICE_URL;
 const FRONTEND_EJS_SERVICE_URL = process.env.FRONTEND_EJS_SERVICE_URL;
+const HR_SERVICE_URL = process.env.HR_SERVICE_URL; // <-- NEU: URL für HR Service
 const JWT_SECRET = process.env.JWT_SECRET;
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
@@ -25,6 +26,9 @@ if (!JWT_SECRET) {
 }
 if (!FRONTEND_EJS_SERVICE_URL) {
     console.warn('WARNUNG: FRONTEND_EJS_SERVICE_URL ist im API Gateway nicht gesetzt. Frontend-Proxy könnte fehlschlagen.');
+}
+if (!HR_SERVICE_URL) { // <-- NEU: Warnung, falls HR_SERVICE_URL nicht gesetzt ist
+    console.warn('WARNUNG: HR_SERVICE_URL ist im API Gateway nicht gesetzt. HR-Proxy könnte fehlschlagen.');
 }
 
 app.use(cors({
@@ -67,12 +71,13 @@ app.use(helmet({
                 LOCATION_SERVICE_URL,
                 CLIENT_SERVICE_URL,
                 FRONTEND_EJS_SERVICE_URL,
+                HR_SERVICE_URL, // <-- NEU: HR Service URL zur CSP hinzufügen
                 "https://maps.googleapis.com",
                 "https://*.googleapis.com",
                 "https://*.gstatic.com",
                 "https://cdnjs.cloudflare.com"
             ],
-            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"], // <-- AKTUALISIERT: Cloudflare CDN für Fonts hinzugefügt
             frameSrc: [
                 "'self'",
                 "https://www.google.com/",
@@ -212,16 +217,6 @@ app.get('/api/shifts/user/:userId', authenticateGateway, httpProxy(SHIFT_SERVICE
     proxyReqOptDecorator: setUserHeaders
 }));
 
-// Wenn Sie eine allgeme '/api/shifts' Route für DRP2-spezifische Funktionalität hatten,
-// die nicht mit den Check-in/Check-out Routen kollidiert, können Sie diese hier wieder hinzufügen.
-// Falls nicht, sind die spezifischen Routen ausreichend.
-// Beispiel (falls nötig, aber nicht Teil des Originalschemas):
-// app.use('/api/shifts', authenticateGateway, httpProxy(SHIFT_SERVICE_URL, {
-//     proxyReqPathResolver: req => req.url,
-//     proxyReqOptDecorator: setUserHeaders
-// }));
-
-
 // NEUE REGEL: Proxy für /api/locations/clients-for-dropdown an den Client Service
 // Dies muss VOR der allgemeineren '/api/locations' Regel stehen
 app.get('/api/locations/clients-for-dropdown', authenticateGateway, httpProxy(CLIENT_SERVICE_URL, {
@@ -284,6 +279,29 @@ app.use('/api/clients', authenticateGateway, httpProxy(CLIENT_SERVICE_URL, {
     proxyReqPathResolver: req => req.url,
     proxyReqOptDecorator: setUserHeaders
 }));
+
+// NEU: PROXY-REGELN FÜR HR-ENDPUNKTE
+app.use('/api/hr', authenticateGateway, httpProxy(HR_SERVICE_URL, {
+    proxyReqPathResolver: req => {
+        // Da der HR Service selbst Routen unter '/api/hr' definiert,
+        // müssen wir den Pfad 1:1 weiterleiten (req.url enthält bereits /employees, /employees/:id etc.)
+        const resolvedPath = req.url; 
+        console.log(`[API Gateway Proxy] /api/hr Proxy aktiv: Leite ${req.originalUrl} weiter als ${resolvedPath} an ${HR_SERVICE_URL}`);
+        return resolvedPath;
+    },
+    proxyReqOptDecorator: setUserHeaders,
+    proxyErrorHandler: (err, res, next) => {
+        console.error(`[API Gateway Proxy Error] Fehler beim Weiterleiten von /api/hr-Anfrage an ${HR_SERVICE_URL}:`, err.code, err.message);
+        if (!res.headersSent) {
+            if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                res.status(503).json({ message: `HR Service nicht verfügbar oder nicht erreichbar: ${err.message}` });
+            } else {
+                res.status(500).json({ message: `Proxy-Fehler beim Abrufen von HR-Daten: ${err.message}` });
+            }
+        }
+    }
+}));
+
 
 // NEUE MIDDLEWARE FÜR BESSERES DEBUGGING VON /PUBLIC UND /UPLOADS
 app.use((req, res, next) => {

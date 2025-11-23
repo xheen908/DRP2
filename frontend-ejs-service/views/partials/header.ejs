@@ -12,8 +12,9 @@
         <% if (user && (user.roles.includes('Manager') || user.roles.includes('Disponent'))) { %>
             <a href="/admin/jobs">Jobverwaltung</a>
         <% } %>
-        <% if (user && user.roles.includes('Manager')) { %>
+        <% if (user && (user.roles.includes('Manager') || user.roles.includes('Admin'))) { %> <!-- Rollenprüfung für HR Management -->
             <a href="/admin/users">Mitarbeiter Verwaltung</a>
+            <!-- <a href="/admin/hr">HR Management</a> --><!-- ENTFERNT: Link zur HR Management Seite -->
         <% } %>
         <button onclick="logout()">Abmelden</button>
     </div>

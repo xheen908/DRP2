@@ -1,0 +1,22 @@
+# Basis-Image: Node.js 20, schlank und optimiert für Alpine Linux
+FROM node:20-alpine
+
+# Arbeitsverzeichnis im Container festlegen
+WORKDIR /app
+
+# package.json und package-lock.json kopieren
+# Dies ermöglicht es, die Abhängigkeiten zu cachen,
+# da sie sich seltener ändern als der Anwendungs-Code.
+COPY package*.json ./
+
+# Abhängigkeiten installieren
+RUN npm install
+
+# Den gesamten Anwendungs-Code in das Arbeitsverzeichnis kopieren
+COPY . .
+
+# Den Port freigeben, auf dem die Anwendung lauscht
+EXPOSE 3008
+
+# Startbefehl für die Anwendung
+CMD ["npm", "start"]

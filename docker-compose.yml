@@ -6,28 +6,27 @@ services:
   # --------------------------------------------------------------------------
   api-gateway:
     build:
-      context: ./api-gateway # Korrigiert: Relativ zu DRP/drp2/
+      context: ./api-gateway
       dockerfile: Dockerfile
     container_name: drp_api_gateway
     restart: always
     ports:
-      - "3005:3000" # Host-Port 3005 -> Container-Port 3000 (Gateway lauscht auf 3000)
+      - "3005:3000" 
     volumes:
-      - "./api-gateway:/app" # Korrigiert: Relativ zu DRP/drp2/ für Live-Codeänderungen
+      - "./api-gateway:/app"
     environment:
       AUTH_SERVICE_URL: http://auth-service:3001
       JOB_SERVICE_URL: http://job-service:3002
       SHIFT_SERVICE_URL: http://shift-service:3003
       LOCATION_SERVICE_URL: http://location-service:3004
-      CLIENT_SERVICE_URL: http://client-service:3006 # Client Service Port ist 3006
-      FRONTEND_EJS_SERVICE_URL: http://frontend-ejs-service:3007 # URL für den Frontend Service
+      CLIENT_SERVICE_URL: http://client-service:3006
+      FRONTEND_EJS_SERVICE_URL: http://frontend-ejs-service:3007
+      HR_SERVICE_URL: http://hr-service:3008
       JWT_SECRET: ${JWT_SECRET}
       REDIS_HOST: redis-cache
       REDIS_PORT: 6379
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
     depends_on:
-      # Das API Gateway muss nicht direkt vom Frontend-Dienst abhängen,
-      # um selbst zu starten, da es nur ein Router ist.
       auth-service:
         condition: service_started
       job-service:
@@ -37,6 +36,8 @@ services:
       location-service:
         condition: service_started
       client-service:
+        condition: service_started
+      hr-service: # <-- NEU: Abhängigkeit vom HR Service
         condition: service_started
       redis-cache:
         condition: service_healthy
@@ -50,14 +51,14 @@ services:
   # --------------------------------------------------------------------------
   auth-service:
     build:
-      context: ./auth-service # Korrigiert
+      context: ./auth-service
       dockerfile: Dockerfile
     container_name: drp_auth_service
     restart: always
     ports:
-      - "3001:3001" # Interner Port des Auth Service
+      - "3001:3001" 
     volumes:
-      - "./auth-service:/app" # Korrigiert
+      - "./auth-service:/app"
     environment:
       DB_HOST: mysql-db
       DB_USER: ${DB_USER}
@@ -75,18 +76,50 @@ services:
       - drp_network
 
   # --------------------------------------------------------------------------
+  # HR Microservice - Verwaltung aller Personal-bezogenen Daten (NEU)
+  # --------------------------------------------------------------------------
+  hr-service: # <-- NEUER SERVICE-BLOCK FÜR HR-SERVICE
+    build:
+      context: ./hr-service
+      dockerfile: Dockerfile
+    container_name: drp_hr_service
+    restart: always
+    ports:
+      - "3008:3008" # <-- Neuer externer/interner Port für HR Service
+    volumes:
+      - "./hr-service:/app"
+    environment:
+      PORT: 3008 # Explizit den Port setzen
+      DB_HOST: mysql-db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASS}
+      DB_NAME: hr_db # Eigene Datenbank für HR Service
+      AUTH_SERVICE_URL: http://auth-service:3001 # Für interne Kommunikation
+      REDIS_HOST: redis-cache # Falls der HR Service Redis nutzen sollte
+      REDIS_PORT: 6379
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      auth-service: # HR Service hängt vom Auth Service ab
+        condition: service_started
+      redis-cache:
+        condition: service_healthy
+    networks:
+      - drp_network
+
+  # --------------------------------------------------------------------------
   # Job Microservice - Verwaltung aller Job-bezogenen Daten
   # --------------------------------------------------------------------------
   job-service:
     build:
-      context: ./job-service # Korrigiert
+      context: ./job-service
       dockerfile: Dockerfile
     container_name: drp_job_service
     restart: always
     ports:
-      - "3002:3002" # Interner Port des Job Service
+      - "3002:3002" 
     volumes:
-      - "./job-service:/app" # Korrigiert
+      - "./job-service:/app"
     environment:
       DB_HOST: mysql-db
       DB_USER: ${DB_USER}
@@ -116,14 +149,14 @@ services:
   # --------------------------------------------------------------------------
   shift-service:
     build:
-      context: ./shift-service # Korrigiert
+      context: ./shift-service
       dockerfile: Dockerfile
     container_name: drp_shift_service
     restart: always
     ports:
       - "3003:3003" # Interner Port des Shift Service
     volumes:
-      - "./shift-service:/app" # Korrigiert
+      - "./shift-service:/app"
     environment:
       DB_HOST: mysql-db
       DB_USER: ${DB_USER}
@@ -153,14 +186,14 @@ services:
   # --------------------------------------------------------------------------
   location-service:
     build:
-      context: ./location-service # Korrigiert
+      context: ./location-service
       dockerfile: Dockerfile
     container_name: drp_location_service
     restart: always
     ports:
-      - "3004:3004" # Interner Port des Location Service
+      - "3004:3004" 
     volumes:
-      - "./location-service:/app" # Korrigiert
+      - "./location-service:/app"
     environment:
       DB_HOST: mysql-db
       DB_USER: ${DB_USER}
@@ -182,14 +215,14 @@ services:
   # --------------------------------------------------------------------------
   client-service:
     build:
-      context: ./client-service # Korrigiert
+      context: ./client-service
       dockerfile: Dockerfile
     container_name: drp_client_service
     restart: always
     ports:
-      - "3006:3006" # Interner Port des Client Service
+      - "3006:3006" 
     volumes:
-      - "./client-service:/app" # Korrigiert
+      - "./client-service:/app"
     environment:
       DB_HOST: mysql-db
       DB_USER: ${DB_USER}
@@ -213,21 +246,21 @@ services:
   # --------------------------------------------------------------------------
   frontend-ejs-service:
     build:
-      context: ./frontend-ejs-service # Korrigiert
+      context: ./frontend-ejs-service
       dockerfile: Dockerfile
     container_name: drp_frontend_ejs_service
     restart: always
     ports:
-      - "3007:3007" # Interner Port des Frontend EJS Service
+      - "3007:3007" 
     volumes:
-      - "./frontend-ejs-service:/app" # Korrigiert
+      - "./frontend-ejs-service:/app"
     environment:
       PORT: 3007
       API_GATEWAY_URL: http://api-gateway:3000
       JWT_SECRET: ${JWT_SECRET}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
     depends_on:
-      api-gateway: # Frontend EJS Service hängt vom API Gateway ab, um Backend-Daten abzurufen
+      api-gateway:
         condition: service_started
     networks:
       - drp_network
@@ -243,10 +276,9 @@ services:
           MYSQL_ROOT_PASSWORD: ${DB_PASS}
           MYSQL_USER: ${DB_USER}
           MYSQL_PASSWORD: ${DB_PASS}
-          MYSQL_MULTIPLE_DATABASES: "auth_db,job_db,shift_db,location_db,client_db"
+          MYSQL_MULTIPLE_DATABASES: "auth_db,job_db,shift_db,location_db,client_db,hr_db" # <-- hr_db HINZUGEFÜGT
         volumes:
           - mysql_data:/var/lib/mysql
-          # Nur noch das eine globale Initialisierungsskript mounten
           - ./init-all-dbs.sql:/docker-entrypoint-initdb.d/init-all-dbs.sql
         healthcheck:
           test: ["CMD-SHELL", "mysqladmin ping -h localhost -u$$MYSQL_USER -p$$MYSQL_PASSWORD"]
@@ -262,7 +294,7 @@ services:
 
   # --------------------------------------------------------------------------
   # Redis Cache/Broker-Dienst (zentral belassen)
-#  --------------------------------------------------------------------------
+  # --------------------------------------------------------------------------
   redis-cache:
     image: redis:7.2-alpine
     container_name: drp_redis_cache2

@@ -155,6 +155,18 @@ app.get('/admin/locations', (req, res) => {
     });
 });
 
+// app.get('/admin/hr', (req, res) => { // <-- ENTFERNT: ROUTE FÜR HR MANAGEMENT
+//     const user = getUserFromHeaders(req);
+//     // Nur Admin und Manager dürfen auf diese Seite zugreifen
+//     if (!user || (!user.roles.includes('Admin') && !user.roles.includes('Manager'))) {
+//         return res.status(403).render('error', { message: 'Keine Berechtigung für diese Seite.' });
+//     }
+//     res.render('admin/hr_management', {
+//         user: user,
+//         API_GATEWAY_URL: API_GATEWAY_URL // API Gateway URL an das Template übergeben
+//     });
+// });
+
 app.get('/admin/user-shifts/:userId', async (req, res) => {
     const user = getUserFromHeaders(req);
     const targetUserId = req.params.userId;

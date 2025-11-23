@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Management - DRP2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/public/css/style.css"> <!-- Stellen Sie sicher, dass dies existiert -->
+    <style>
+        /* CSS für den Header wird hier belassen, da es global ist (aus Dashboard.ejs übernommen) */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4; /* Hintergrundfarbe wie im Dashboard */
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1000;
+        }
+        .app-title {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .burger-menu {
+            font-size: 2em;
+            cursor: pointer;
+            padding: 5px;
+            user-select: none;
+        }
+        header .dropdown-menu { /* Spezifische Regel für das Dropdown im Header */
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: #444;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 999;
+            border-radius: 0 0 5px 5px;
+            overflow: hidden;
+        }
+        header .dropdown-menu.show {
+            display: block;
+        }
+        .dropdown-menu button {
+            color: white;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 0;
+            border-radius: 0;
+        }
+        .dropdown-menu button:hover {
+            background-color: #575757;
+        }
+        .dropdown-menu a { /* Auch für Links im Menü */
+            color: white;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 0;
+            border-radius: 0;
+        }
+        .dropdown-menu a:hover {
+            background-color: #575757;
+        }
+
+        /* Dashboard-Container-Stil (aus Dashboard.ejs übernommen) */
+        .dashboard-container {
+            background-color: #fff;
+            padding: 30px;
+            margin: 20px auto; /* Behält 20px horizontalen Abstand */
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 1200px; /* Begrenzung wie im dashboard.ejs für den Container */
+        }
+        /* Überschrift im Container anpassen (aus Dashboard.ejs übernommen) */
+        .dashboard-container h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em; /* Match h1 in dashboard.ejs */
+            font-weight: bold; /* Match h1 in dashboard.ejs */
+        }
+        .dashboard-container h2 { /* Konsistente h2-Größe für alle Admin-Seiten */
+            font-size: 1.25em;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #1f2937; /* text-gray-800 */
+        }
+
+        /* Zusätzliche Stile für Tabellen und Modals, die in anderen Admin-Seiten verwendet werden */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: white;
+            display: inline-block;
+        }
+        .bg-orange-500 { background-color: #f97316; }
+        .bg-blue-500 { background-color: #3b82f6; }
+        .bg-green-500 { background-color: #22c55e; }
+        .bg-emerald-500 { background-color: #10b981; }
+        .bg-red-500 { background-color: #ef4444; }
+        .bg-yellow-500 { background-color: #eab308; }
+        .bg-gray-500 { background-color: #6b7280; }
+
+        /* NEUE STILE FÜR MODAL (aus Dashboard.ejs übernommen) */
+        .modal {
+            display: none; /* Standardmäßig versteckt */
+            position: fixed; /* Bleibt über allem */
+            z-index: 1000; /* Ganz vorne */
+            left: 0;
+            top: 0;
+            width: 100%; /* Volle Breite */
+            height: 100%; /* Volle Höhe */
+            overflow: auto; /* Scrollbar, wenn nötig */
+            background-color: rgba(0,0,0,0.4); /* Dunkler Hintergrund */
+            align-items: center; /* Zentriert vertikal */
+            justify-content: center; /* Zentriert horizontal */
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            top: 10px;
+            right: 20px;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .clickable-cell {
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-color: #2563eb;
+            text-underline-offset: 2px;
+        }
+        .clickable-cell:hover {
+            text-decoration-color: #1e40af;
+        }
+        /* HÖHEPUNKT-STILE FÜR TABELLENZEILEN (aus job_management.ejs und dashboard.ejs) */
+        .highlight-upcoming {
+            background-color: #d4edda; /* Helles Grün für bevorstehende Jobs */
+        }
+        .highlight-upcoming:hover {
+            background-color: #d4edda; /* Behält die Farbe beim Hover */
+        }
+        .highlight-overdue {
+            background-color: #f8d7da; /* Helles Rot für überfällige Jobs */
+        }
+        .highlight-overdue:hover {
+            background-color: #f8d7da; /* Behält die Farbe beim Hover */
+        }
+        .fade-past {
+            opacity: 0.75; /* 25% ausgeblendet */
+        }
+        .fade-past:hover {
+            opacity: 0.75; /* Behält die Opazität beim Hover */
+        }
+        .message { padding: 0.75rem; border-radius: 0.25rem; border-width: 1px; margin-top: 1rem;}
+        .bg-red-100 { background-color: #fee2e2; }
+        .text-red-800 { color: #991b1b; }
+        .border-red-300 { border-color: #fca5a5; }
+        .bg-green-100 { background-color: #dcfce7; }
+        .text-green-800 { color: #166534; }
+        .border-green-300 { border-color: #86efac; }
+        .hidden { display: none; }
+        .space-y-4 > *:not(:last-child) { margin-bottom: 1rem; }
+        .block { display: block; }
+        .w-full { width: 100%; }
+        .p-2 { padding: 0.5rem; }
+        .border { border-width: 1px; }
+        .border-gray-300 { border-color: #d1d5db; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .text-gray-700 { color: #374151; }
+        .flex { display: flex; }
+        .justify-end { justify-content: flex-end; }
+        .space-x-2 > *:not(:first-child) { margin-left: 0.5rem; }
+        .bg-gray-300 { background-color: #d1d5db; }
+        .hover\:bg-gray-400:hover { background-color: #9ca3af; }
+        .bg-blue-500 { background-color: #3b82f6; }
+        .hover\:bg-blue-600:hover { background-color: #2563eb; }
+        .ml-2 { margin-left: 0.5rem; }
+        .h-4 { height: 1rem; }
+        .w-4 { width: 1rem; }
+        .text-blue-600 { color: #2563eb; }
+        .rounded { border-radius: 0.25rem; }
+        .items-center { align-items: center; }
+        /* Spezifische Anpassungen für das HR Formular */
+        /* Beibehalten der Formular-Spezifikationen, falls sie von den allgemeinen modal-content abweichen sollen */
+        #addEmployeeFormContainer {
+            /* Diese Klasse wird direkt auf das div angewendet, das das Formular umschließt, um die Breite zu steuern */
+            /* Es ist keine Modal-Klasse, daher sollte es außerhalb des Modal-Kontextes verwendet werden,
+               es sei denn, Sie planen, das Hinzufügen-Formular in ein Modal zu verschieben. */
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <%- include('../partials/header') %>
+
+    <div class="dashboard-container">
+        <h1 class="text-3xl font-bold mb-6 text-center">HR Management</h1>
+
+        <% if (user && (user.roles.includes('Admin') || user.roles.includes('Manager'))) { %>
+            <div id="addEmployeeFormContainer" class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 mb-8">
+                <h2 class="text-2xl font-semibold mb-4">Neuen Mitarbeiter hinzufügen</h2>
+                <form id="addEmployeeForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="newUserId" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Benutzer ID (aus Auth Service)</label>
+                        <input type="number" id="newUserId" name="userId" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 p-2">
+                    </div>
+                    <div>
+                        <label for="newFirstName" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Vorname</label>
+                        <input type="text" id="newFirstName" name="firstName" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 p-2">
+                    </div>
+                    <div>
+                        <label for="newLastName" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Nachname</label>
+                        <input type="text" id="newLastName" name="lastName" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 p-2">
+                    </div>
+                    <div>
+                        <label for="newEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-200">E-Mail (optional)</label>
+                        <input type="email" id="newEmail" name="email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 p-2">
+                    </div>
+                    <div>
+                        <label for="newDateOfBirth" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Geburtsdatum (optional)</label>
+                        <input type="date" id="newDateOfBirth" name="dateOfBirth" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 p-2">
+                    </div>
+                    <div>
+                        <label for="newDateOfHire" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Einstellungsdatum</label>
+                        <input type="date" id="newDateOfHire" name="dateOfHire" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 p-2">
+                    </div>
+                    <div>
+                        <label for="newDepartment" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Abteilung (optional)</label>
+                        <input type="text" id="newDepartment" name="department" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 p-2">
+                    </div>
+                    <div>
+                        <label for="newPosition" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Position (optional)</label>
+                        <input type="text" id="newPosition" name="position" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 p-2">
+                    </div>
+                    <div>
+                        <label for="newSalary" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Gehalt (optional)</label>
+                        <input type="number" step="0.01" id="newSalary" name="salary" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 p-2">
+                    </div>
+                    <div class="md:col-span-2">
+                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition duration-150 ease-in-out">Mitarbeiter hinzufügen</button>
+                    </div>
+                </form>
+                <div id="addEmployeeMessage" class="mt-4 text-center"></div>
+            </div>
+        <% } else { %>
+            <p class="text-center text-red-500">Sie haben nicht die Berechtigung, diese Seite anzuzeigen.</p>
+        <% } %>
+
+
+        <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+            <h2 class="text-2xl font-semibold mb-4">Mitarbeiterliste</h2>
+            <div id="employeeList" class="overflow-x-auto">
+                <!-- Mitarbeiterdaten werden hier von JavaScript geladen -->
+                <p id="loadingMessage" class="text-center">Lade Mitarbeiterdaten...</p>
+            </div>
+            <div id="employeeListMessage" class="mt-4 text-center"></div>
+        </div>
+    </div>
+
+    <script>
+        console.log("HR Management Script geladen.");
+        const API_GATEWAY_URL = "<%= API_GATEWAY_URL %>";
+        console.log("API Gateway URL:", API_GATEWAY_URL);
+        const userRoles = <%= JSON.stringify(user ? user.roles : []) %>;
+        console.log("User Roles:", userRoles);
+
+        // Dummy-Funktionen, um die HTML-Buttons nicht zu zerbrechen, falls sie angezeigt werden
+        function editEmployee(id) { console.log('Edit Employee Dummy Called:', id); alert('Bearbeitungsfunktion folgt noch.'); }
+        function deleteEmployee(id) { console.log('Delete Employee Dummy Called:', id); alert('Löschfunktion folgt noch.'); }
+
+
+        async function fetchEmployees() {
+            const employeeListDiv = document.getElementById('employeeList');
+            const loadingMessage = document.getElementById('loadingMessage');
+            const employeeListMessage = document.getElementById('employeeListMessage');
+            employeeListDiv.innerHTML = '';
+            employeeListMessage.textContent = '';
+            if (loadingMessage) loadingMessage.style.display = 'block';
+
+            try {
+                const response = await fetch(`${API_GATEWAY_URL}/api/hr/employees`, {
+                    headers: {
+                        'Authorization': `Bearer ${document.cookie.split('; ').find(row => row.startsWith('jwt='))?.split('=')[1]}`
+                    }
+                });
+                const employees = await response.json();
+
+                if (response.ok) {
+                    if (employees.length === 0) {
+                        employeeListDiv.innerHTML = '<p class="text-center text-gray-500 dark:text-gray-400">Keine Mitarbeiter gefunden.</p>';
+                    } else {
+                        let tableHtml = `
+                            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                <thead class="bg-gray-50 dark:bg-gray-700">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Benutzer ID</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Vorname</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nachname</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">E-Mail</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Einstellungsdatum</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Position</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                                        <th scope="col" class="relative px-6 py-3"><span class="sr-only">Aktionen</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                        `;
+                        employees.forEach(employee => {
+                            const statusClass = employee.status === 'active' ? 'bg-green-500' : employee.status === 'on_leave' ? 'bg-yellow-500' : 'bg-red-500';
+                            const actionButtons = `
+                                <button onclick="editEmployee(${employee.id})" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-600 mr-2"><i class="fas fa-edit"></i> Bearbeiten</button>
+                                <button onclick="deleteEmployee(${employee.id})" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-600"><i class="fas fa-trash"></i> Löschen</button>
+                            `;
+                            tableHtml += `
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">${employee.id}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${employee.userId}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${employee.firstName}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${employee.lastName}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${employee.email || 'N/A'}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${new Date(employee.dateOfHire).toLocaleDateString()}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${employee.position || 'N/A'}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="status-badge ${statusClass}">
+                                                ${employee.status}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            ${actionButtons}
+                                        </td>
+                                    </tr>
+                            `;
+                        });
+                        tableHtml += `
+                                </tbody>
+                            </table>
+                        `;
+                        employeeListDiv.innerHTML = tableHtml;
+                    }
+                } else {
+                    employeeListMessage.textContent = employees.message || 'Fehler beim Laden der Mitarbeiter.';
+                    employeeListMessage.className = 'mt-4 text-center text-red-500';
+                }
+            } catch (error) {
+                console.error('Fetch Fehler:', error);
+                employeeListMessage.textContent = 'Netzwerkfehler oder Server nicht erreichbar.';
+                employeeListMessage.className = 'mt-4 text-center text-red-500';
+            } finally {
+                if (loadingMessage) loadingMessage.style.display = 'none';
+            }
+        }
+
+        // Event Listener für das Hinzufügen-Formular
+        document.getElementById('addEmployeeForm')?.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const employeeData = Object.fromEntries(formData.entries());
+
+            // Konvertiere salary zu einer Zahl, falls vorhanden
+            if (employeeData.salary) {
+                employeeData.salary = parseFloat(employeeData.salary);
+            }
+            // Konvertiere userId zu einer Zahl
+            employeeData.userId = parseInt(employeeData.userId, 10);
+
+            const addEmployeeMessage = document.getElementById('addEmployeeMessage');
+            addEmployeeMessage.textContent = ''; // Nachricht zurücksetzen
+
+            try {
+                const response = await fetch(`${API_GATEWAY_URL}/api/hr/employees`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${document.cookie.split('; ').find(row => row.startsWith('jwt='))?.split('=')[1]}`
+                    },
+                    body: JSON.stringify(employeeData)
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    addEmployeeMessage.textContent = result.message || 'Mitarbeiter erfolgreich hinzugefügt.';
+                    addEmployeeMessage.className = 'mt-4 text-center text-green-500';
+                    form.reset(); // Formular zurücksetzen
+                    fetchEmployees(); // Liste aktualisieren
+                } else {
+                    addEmployeeMessage.textContent = result.message || 'Fehler beim Hinzufügen des Mitarbeiters.';
+                    addEmployeeMessage.className = 'mt-4 text-center text-red-500';
+                }
+            } catch (error) {
+                console.error('Add Employee Fehler:', error);
+                addEmployeeMessage.textContent = 'Netzwerkfehler oder Server nicht erreichbar.';
+                addEmployeeMessage.className = 'mt-4 text-center text-red-500';
+            }
+        });
+
+        // Mitarbeiterdaten laden, wenn die Seite geladen wird
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM Content Loaded, versuche fetchEmployees...');
+            fetchEmployees();
+        });
+    </script>
+</body>
+</html>

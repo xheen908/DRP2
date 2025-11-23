@@ -11,10 +11,7 @@ const User = sequelize.define('User', {
         primaryKey: true,
         autoIncrement: true
     },
-    full_name: {
-        type: DataTypes.STRING,
-        allowNull: false
-    },
+    // full_name wurde entfernt und wird nun vom HR Service abgerufen
     // email: { // Optional: Falls Sie E-Mail-basierte Logins/Recovery wollen
     //     type: DataTypes.STRING,
     //     allowNull: true,

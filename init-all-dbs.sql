@@ -182,13 +182,43 @@ CREATE TABLE IF NOT EXISTS shift_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Detaillierte Protokollierung aller Aktionen und Standortdaten';
 
 -- Initialdaten für shift_logs (leer in der Original-DB)
+
+
+-- --------------------------------------------------------------------------
+-- HR Service Datenbank (hr_db) - NEU
+-- --------------------------------------------------------------------------
+CREATE DATABASE IF NOT EXISTS hr_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE hr_db;
+
+-- Tabelle: employees
+CREATE TABLE IF NOT EXISTS employees (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE COMMENT 'Logische Referenz zur ID des Benutzers im Auth Service (Auth Service hat eigene DB)',
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE, 
+    date_of_birth DATE, 
+    date_of_hire DATE NOT NULL,
+    department VARCHAR(255), 
+    position VARCHAR(255), 
+    salary DECIMAL(10, 2), 
+    status ENUM('active', 'inactive', 'on_leave', 'terminated') DEFAULT 'active',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------------------------
+-- Benutzer und Berechtigungen (Zentral für alle DBs)
+-- --------------------------------------------------------------------------
+-- Benutzer 'drpuser'@'%' erstellen, falls er noch nicht existiert
 CREATE USER IF NOT EXISTS 'drpuser'@'%' IDENTIFIED BY 'drppassword';
 
--- 2. Berechtigungen für jede Datenbank zuweisen
+-- Berechtigungen für jede Datenbank zuweisen
 GRANT ALL PRIVILEGES ON auth_db.* TO 'drpuser'@'%';
 GRANT ALL PRIVILEGES ON client_db.* TO 'drpuser'@'%';
 GRANT ALL PRIVILEGES ON location_db.* TO 'drpuser'@'%';
 GRANT ALL PRIVILEGES ON job_db.* TO 'drpuser'@'%';
 GRANT ALL PRIVILEGES ON shift_db.* TO 'drpuser'@'%';
+GRANT ALL PRIVILEGES ON hr_db.* TO 'drpuser'@'%'; -- <-- NEU: Berechtigungen für hr_db hinzufügen
 
 FLUSH PRIVILEGES;
