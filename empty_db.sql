@@ -334,6 +334,65 @@ CREATE TABLE IF NOT EXISTS `locations` (
 -- Daten-Export vom Benutzer nicht ausgewählt
 
 
+-- Exportiere Datenbank-Struktur für payroll_db
+CREATE DATABASE IF NOT EXISTS `payroll_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `payroll_db`;
+
+-- Exportiere Struktur von Tabelle payroll_db.payroll_runs
+CREATE TABLE IF NOT EXISTS `payroll_runs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `month` int NOT NULL,
+  `year` int NOT NULL,
+  `runDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('pending','calculated','approved','paid','cancelled') NOT NULL DEFAULT 'pending',
+  `totalGrossSalary` decimal(10,2) DEFAULT '0.00',
+  `totalNetSalary` decimal(10,2) DEFAULT '0.00',
+  `createdByUserId` varchar(255) NOT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `payroll_runs_chk_1` CHECK (((`month` >= 1) and (`month` <= 12))),
+  CONSTRAINT `payroll_runs_chk_2` CHECK ((`year` >= 2000))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Daten-Export vom Benutzer nicht ausgewählt
+
+-- Exportiere Struktur von Tabelle payroll_db.payslips
+CREATE TABLE IF NOT EXISTS `payslips` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `payrollRunId` int NOT NULL,
+  `employeeId` int NOT NULL,
+  `grossSalary` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `netSalary` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `taxAmount` decimal(10,2) DEFAULT '0.00',
+  `socialSecurityAmount` decimal(10,2) DEFAULT '0.00',
+  `healthInsuranceEmployeeShare` decimal(10,2) DEFAULT '0.00',
+  `nursingInsuranceEmployeeShare` decimal(10,2) DEFAULT '0.00',
+  `pensionInsuranceEmployeeShare` decimal(10,2) DEFAULT '0.00',
+  `unemploymentInsuranceEmployeeShare` decimal(10,2) DEFAULT '0.00',
+  `employerSocialSecurityTotal` decimal(10,2) DEFAULT '0.00',
+  `otherDeductions` json DEFAULT NULL,
+  `bonuses` json DEFAULT NULL,
+  `allowances` json DEFAULT NULL,
+  `taxClass` enum('I','II','III','IV','IV/IV','V','VI') DEFAULT NULL,
+  `childAllowances` decimal(3,1) DEFAULT '0.0',
+  `maritalStatus` enum('Ledig','Verheiratet','Geschieden','Verwitwet','Eingetragene Partnerschaft','Unbekannt') DEFAULT NULL,
+  `payrollPeriodStart` date NOT NULL,
+  `payrollPeriodEnd` date NOT NULL,
+  `payslipDate` date NOT NULL DEFAULT (curdate()),
+  `status` enum('generated','distributed','corrected','cancelled') NOT NULL DEFAULT 'generated',
+  `documentPath` varchar(255) DEFAULT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `payrollRunId` (`payrollRunId`),
+  KEY `idx_payslips_employeeId` (`employeeId`),
+  CONSTRAINT `payslips_ibfk_1` FOREIGN KEY (`payrollRunId`) REFERENCES `payroll_runs` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Daten-Export vom Benutzer nicht ausgewählt
+
+
 -- Exportiere Datenbank-Struktur für shift_db
 CREATE DATABASE IF NOT EXISTS `shift_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 USE `shift_db`;

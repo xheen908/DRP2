@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 INSERT INTO `users` (`id`, `role_id`, `full_name`, `pin`, `password`, `external_auth_id`, `is_active`, `createdAt`, `updatedAt`) VALUES
 	(1006, 2, 'Sarah Manager', '333333', '$2b$10$s4lugBs5pd5PcbaXH30hHegTXkwUF/ADLzb/7VoNWN2Lpq61QCYdK', NULL, 1, '2025-11-12 01:12:27', '2025-11-18 18:10:39'),
 	(1009, 3, 'Dieter Disponent', '846763', '$2b$10$yun.AK/r4YHgEuAaM/vXaOxZDKhY1KWTDWbkU.tBsOp5SXMxw92sy', NULL, 1, '2025-11-12 01:13:55', '2025-11-18 18:10:45'),
-	(1015, 4, 'Ronny Webers', '315776', '$2b$10$fhTPAIZQ0sgGmWi/ZCV0ZOus9tcAkIkVrZIvY4OyHJkEHdMR75lMy', NULL, 1, '2025-11-12 23:56:30', '2025-11-22 20:57:04');
+	(1015, 4, 'Ronny Webers', '315776', '$2b$10$fhTPAIZQ0sgGmWi/ZCV0ZOus9tcAkIkVrZIvY4OyHJkEHdMR75lMy', NULL, 1, '2025-11-12 23:56:30', '2025-11-23 02:27:59');
 
 
 -- Exportiere Datenbank-Struktur für client_db
@@ -106,8 +106,6 @@ CREATE TABLE IF NOT EXISTS `emergency_contacts` (
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Exportiere Daten aus Tabelle hr_db.emergency_contacts: ~0 rows (ungefähr)
-INSERT INTO `emergency_contacts` (`id`, `employee_id`, `full_name`, `relationship`, `phone_number`, `email`, `created_at`, `updated_at`) VALUES
-	(1, 1, 'Reiner Manager', 'Vater', '+491789456234', 'reiner.manager@exaple.com', '2025-11-22 23:37:37', '2025-11-22 23:37:38');
 
 -- Exportiere Struktur von Tabelle hr_db.employees
 CREATE TABLE IF NOT EXISTS `employees` (
@@ -198,9 +196,9 @@ CREATE TABLE IF NOT EXISTS `employees` (
 
 -- Exportiere Daten aus Tabelle hr_db.employees: ~3 rows (ungefähr)
 INSERT INTO `employees` (`id`, `user_id`, `first_name`, `last_name`, `email`, `gender`, `marital_status`, `nationality`, `date_of_birth`, `private_phone`, `date_of_hire`, `department`, `work_location`, `work_schedule_type`, `annual_leave_entitlement`, `salary`, `status`, `created_at`, `updated_at`) VALUES
-	(1, 1006, 'Sarah', 'Manager', 'sarah.manager@example.com', 'Weiblich', 'Verheiratet', 'Deutsch', '1985-05-15', '+49123456789', '2020-01-10', 'Management', 'Verwaltung', 'Vollzeit', 34, 65000.00, 'active', '2025-11-22 12:15:51', '2025-11-23 00:02:11'),
-	(2, 1009, 'Dieter', 'Disponent', 'dieter.disponent@example.com', NULL, NULL, NULL, '1990-08-20', NULL, '2021-03-01', 'Operations', NULL, NULL, 0, 52000.00, 'active', '2025-11-22 12:15:51', '2025-11-22 12:15:51'),
-	(3, 1015, 'Ronny', 'Weber', 'xheen908@gmail.com', 'Männlich', 'Ledig', 'Deutsch', '1992-11-01', '017686304472', '2022-07-15', 'Team1', NULL, 'Vollzeit', 0, 45000.00, 'active', '2025-11-22 12:15:51', '2025-11-23 00:38:54');
+	(1, 1006, 'Sarah', 'Manager', 'sarah.manager@example.com', 'Weiblich', 'Ledig', 'Deutsch', '1985-05-15', '+49123456789', '2020-01-10', 'Management', 'Verwaltung', 'Vollzeit', 34, 65000.00, 'active', '2025-11-22 12:15:51', '2025-11-23 01:03:34'),
+	(2, 1009, 'Dieter', 'Disponent', 'dieter.disponent@example.com', 'Männlich', 'Ledig', 'Deutsch', '1990-08-20', '+49132456789', '2021-03-01', 'Operations', 'Verwaltung', 'Vollzeit', 34, 52000.00, 'active', '2025-11-22 12:15:51', '2025-11-23 02:23:09'),
+	(3, 1015, 'Ronny', 'Weber', 'xheen908@gmail.com', 'Männlich', 'Ledig', 'Deutsch', '1992-11-01', '017686304472', '2022-07-15', 'Operations', 'Außendienst', 'Vollzeit', 28, 45000.00, 'active', '2025-11-22 12:15:51', '2025-11-23 02:27:59');
 
 -- Exportiere Struktur von Tabelle hr_db.employee_addresses
 CREATE TABLE IF NOT EXISTS `employee_addresses` (
@@ -220,10 +218,7 @@ CREATE TABLE IF NOT EXISTS `employee_addresses` (
   CONSTRAINT `employee_addresses_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Exportiere Daten aus Tabelle hr_db.employee_addresses: ~2 rows (ungefähr)
-INSERT INTO `employee_addresses` (`id`, `employee_id`, `address_type`, `street`, `house_number`, `zip_code`, `city`, `country`, `is_primary`, `created_at`, `updated_at`) VALUES
-	(1, 1, 'privat', 'Albertstr', '7', '47059', 'Duisburg', 'Deutschland', 1, '2025-11-22 23:25:41', '2025-11-23 00:01:27'),
-	(6, 3, 'privat', 'Ruhrorter Str.', '86', '47059', 'Duisburg', 'Deutschland', 1, '2025-11-23 00:38:54', '2025-11-23 00:38:54');
+-- Exportiere Daten aus Tabelle hr_db.employee_addresses: ~0 rows (ungefähr)
 
 -- Exportiere Struktur von Tabelle hr_db.employee_bank_details
 CREATE TABLE IF NOT EXISTS `employee_bank_details` (
@@ -241,8 +236,8 @@ CREATE TABLE IF NOT EXISTS `employee_bank_details` (
 
 -- Exportiere Daten aus Tabelle hr_db.employee_bank_details: ~0 rows (ungefähr)
 INSERT INTO `employee_bank_details` (`id`, `employee_id`, `bank_name`, `iban`, `bic`, `created_at`, `updated_at`) VALUES
-	(1, 1, 'Demo Bank Deutschland', 'DE89370400440532013000', 'COBADEFFXXX', '2025-11-22 23:27:48', '2025-11-22 23:27:49'),
-	(2, 3, 'Demo Bank Deutschland', 'LT873250023892918805', 'COBADEFFXXX', '2025-11-23 00:38:54', '2025-11-23 00:38:54');
+	(1, 1, 'Demo Bank Deutschland', 'DE89370400440532013000', 'COBADEFFXXX', '2025-11-23 01:03:34', '2025-11-23 01:03:34'),
+	(2, 3, 'Demo Bank Deutschland', 'LT873250023892918805', 'COBADEFFXXX', '2025-11-23 02:27:59', '2025-11-23 02:27:59');
 
 -- Exportiere Struktur von Tabelle hr_db.employee_tax_social_security
 CREATE TABLE IF NOT EXISTS `employee_tax_social_security` (
@@ -275,8 +270,8 @@ CREATE TABLE IF NOT EXISTS `employee_tax_social_security` (
 
 -- Exportiere Daten aus Tabelle hr_db.employee_tax_social_security: ~0 rows (ungefähr)
 INSERT INTO `employee_tax_social_security` (`id`, `employee_id`, `tax_id_number`, `social_security_number`, `tax_class`, `child_allowances`, `church_tax_applicable`, `religion`, `additional_tax_allowances`, `created_at`, `updated_at`) VALUES
-	(1, 1, '12345678901', '12345678M123', 3, 0.5, 1, 'Evangelisch', 0.00, '2025-11-22 23:34:19', '2025-11-23 00:02:11'),
-	(7, 3, '12345678902', '12345678M122', 1, 0.0, 1, 'Evangelisch', 0.00, '2025-11-23 00:36:15', '2025-11-23 00:38:54');
+	(1, 1, '12345678901', '12345678M123', 3, 0.5, 1, 'Evangelisch', 0.00, '2025-11-22 23:34:19', '2025-11-23 01:03:34'),
+	(7, 3, '12345678902', '12345678M122', 1, 0.0, 1, 'Evangelisch', 0.00, '2025-11-23 00:36:15', '2025-11-23 02:27:59');
 
 
 -- Exportiere Datenbank-Struktur für job_db
@@ -365,13 +360,71 @@ CREATE TABLE IF NOT EXISTS `locations` (
   UNIQUE KEY `nfc_tag_id` (`nfc_tag_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Verwaltet Einsatzorte mit GPS und NFC-Tag-IDs';
 
--- Exportiere Daten aus Tabelle location_db.locations: ~3 rows (ungefähr)
+-- Exportiere Daten aus Tabelle location_db.locations: ~2 rows (ungefähr)
 INSERT INTO `locations` (`id`, `client_id`, `name`, `address`, `latitude`, `longitude`, `nfc_tag_id`, `contact_person`, `createdAt`, `updatedAt`, `type`) VALUES
 	(1, 1, 'DRP Verwaltung', 'Albertstr. 7, 47059 Duisburg', 51.44213680, 6.74782510, 'NFC-LOC-001', 'Herr Schmidt', '2025-11-13 21:00:52', '2025-11-15 18:20:13', 'company_location'),
 	(8, 1, 'Verwaltung Büro 2', 'Albertstr. 7, 47059 Duisburg', 51.44213680, 6.74782510, 'NFC-LOC-003', 'Frau Huber', '2025-11-12 15:11:45', '2025-11-18 20:01:52', 'customer_location'),
 	(12, 1, 'Verwaltung Büro 1', 'Albertstr. 7, 47059 Duisburg', 51.44213680, 6.74782510, 'NFC-LOC-002', 'Herr Schmidt', '2025-11-15 18:14:31', '2025-11-18 20:02:05', 'customer_location'),
-	(13, 3, 'Solar Park 1 / Solar Panel 1&2', 'Portsmontsplatz 1, 47051 duisburg', 51.43022300, 6.77337800, 'NFC-LOC-023', 'Herr Schmidt', '2025-11-16 12:14:23', '2025-11-19 15:26:21', 'customer_location'),
-	(14, 1, 'Arndt Christoph Handschuh', 'Ruhrorter Str., 86', NULL, NULL, 'NFC-LOC-011', NULL, '2025-11-20 16:48:47', '2025-11-20 16:48:47', 'customer_location');
+	(13, 3, 'Solar Park 1 / Solar Panel 1&2', 'Portsmontsplatz 1, 47051 duisburg', 51.43022300, 6.77337800, 'NFC-LOC-023', 'Herr Schmidt', '2025-11-16 12:14:23', '2025-11-19 15:26:21', 'customer_location');
+
+
+-- Exportiere Datenbank-Struktur für payroll_db
+CREATE DATABASE IF NOT EXISTS `payroll_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `payroll_db`;
+
+-- Exportiere Struktur von Tabelle payroll_db.payroll_runs
+CREATE TABLE IF NOT EXISTS `payroll_runs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `month` int NOT NULL,
+  `year` int NOT NULL,
+  `runDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('pending','calculated','approved','paid','cancelled') NOT NULL DEFAULT 'pending',
+  `totalGrossSalary` decimal(10,2) DEFAULT '0.00',
+  `totalNetSalary` decimal(10,2) DEFAULT '0.00',
+  `createdByUserId` varchar(255) NOT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `payroll_runs_chk_1` CHECK (((`month` >= 1) and (`month` <= 12))),
+  CONSTRAINT `payroll_runs_chk_2` CHECK ((`year` >= 2000))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Exportiere Daten aus Tabelle payroll_db.payroll_runs: ~0 rows (ungefähr)
+
+-- Exportiere Struktur von Tabelle payroll_db.payslips
+CREATE TABLE IF NOT EXISTS `payslips` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `payrollRunId` int NOT NULL,
+  `employeeId` int NOT NULL,
+  `grossSalary` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `netSalary` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `taxAmount` decimal(10,2) DEFAULT '0.00',
+  `socialSecurityAmount` decimal(10,2) DEFAULT '0.00',
+  `healthInsuranceEmployeeShare` decimal(10,2) DEFAULT '0.00',
+  `nursingInsuranceEmployeeShare` decimal(10,2) DEFAULT '0.00',
+  `pensionInsuranceEmployeeShare` decimal(10,2) DEFAULT '0.00',
+  `unemploymentInsuranceEmployeeShare` decimal(10,2) DEFAULT '0.00',
+  `employerSocialSecurityTotal` decimal(10,2) DEFAULT '0.00',
+  `otherDeductions` json DEFAULT NULL,
+  `bonuses` json DEFAULT NULL,
+  `allowances` json DEFAULT NULL,
+  `taxClass` enum('I','II','III','IV','IV/IV','V','VI') DEFAULT NULL,
+  `childAllowances` decimal(3,1) DEFAULT '0.0',
+  `maritalStatus` enum('Ledig','Verheiratet','Geschieden','Verwitwet','Eingetragene Partnerschaft','Unbekannt') DEFAULT NULL,
+  `payrollPeriodStart` date NOT NULL,
+  `payrollPeriodEnd` date NOT NULL,
+  `payslipDate` date NOT NULL DEFAULT (curdate()),
+  `status` enum('generated','distributed','corrected','cancelled') NOT NULL DEFAULT 'generated',
+  `documentPath` varchar(255) DEFAULT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `payrollRunId` (`payrollRunId`),
+  KEY `idx_payslips_employeeId` (`employeeId`),
+  CONSTRAINT `payslips_ibfk_1` FOREIGN KEY (`payrollRunId`) REFERENCES `payroll_runs` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Exportiere Daten aus Tabelle payroll_db.payslips: ~0 rows (ungefähr)
 
 
 -- Exportiere Datenbank-Struktur für shift_db

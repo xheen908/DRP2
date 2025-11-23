@@ -207,6 +207,58 @@ CREATE TABLE IF NOT EXISTS employees (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
+CREATE DATABASE IF NOT EXISTS payroll_db;
+
+-- Sicherstellen, dass die Datenbank ausgewählt ist
+USE payroll_db;
+
+-- Tabelle 'payroll_runs' erstellen
+CREATE TABLE IF NOT EXISTS payroll_runs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    month INT NOT NULL CHECK (month >= 1 AND month <= 12),
+    year INT NOT NULL CHECK (year >= 2000),
+    runDate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('pending', 'calculated', 'approved', 'paid', 'cancelled') NOT NULL DEFAULT 'pending',
+    totalGrossSalary DECIMAL(10, 2) DEFAULT 0.00,
+    totalNetSalary DECIMAL(10, 2) DEFAULT 0.00,
+    createdByUserId VARCHAR(255) NOT NULL, -- Oder UUID, je nach Auth Service User ID Typ
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Tabelle 'payslips' erstellen
+CREATE TABLE IF NOT EXISTS payslips (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    payrollRunId INT NOT NULL,
+    employeeId INT NOT NULL, -- Logische Referenz zur Employee ID im HR Service
+    grossSalary DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    netSalary DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    taxAmount DECIMAL(10, 2) DEFAULT 0.00,
+    socialSecurityAmount DECIMAL(10, 2) DEFAULT 0.00,
+    healthInsuranceEmployeeShare DECIMAL(10, 2) DEFAULT 0.00,
+    nursingInsuranceEmployeeShare DECIMAL(10, 2) DEFAULT 0.00,
+    pensionInsuranceEmployeeShare DECIMAL(10, 2) DEFAULT 0.00,
+    unemploymentInsuranceEmployeeShare DECIMAL(10, 2) DEFAULT 0.00,
+    employerSocialSecurityTotal DECIMAL(10, 2) DEFAULT 0.00,
+    otherDeductions JSON,
+    bonuses JSON,
+    allowances JSON,
+    taxClass ENUM('I', 'II', 'III', 'IV', 'IV/IV', 'V', 'VI'),
+    childAllowances DECIMAL(3, 1) DEFAULT 0.0,
+    maritalStatus ENUM('Ledig', 'Verheiratet', 'Geschieden', 'Verwitwet', 'Eingetragene Partnerschaft', 'Unbekannt'),
+    payrollPeriodStart DATE NOT NULL,
+    payrollPeriodEnd DATE NOT NULL,
+    payslipDate DATE NOT NULL DEFAULT (CURRENT_DATE),
+    status ENUM('generated', 'distributed', 'corrected', 'cancelled') NOT NULL DEFAULT 'generated',
+    documentPath VARCHAR(255),
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (payrollRunId) REFERENCES payroll_runs(id) ON DELETE CASCADE
+);
+
+-- Optional: Index für schnelle Abfragen nach employeeId
+CREATE INDEX idx_payslips_employeeId ON payslips(employeeId);
 -- --------------------------------------------------------------------------
 -- Benutzer und Berechtigungen (Zentral für alle DBs)
 -- --------------------------------------------------------------------------
@@ -220,5 +272,6 @@ GRANT ALL PRIVILEGES ON location_db.* TO 'drpuser'@'%';
 GRANT ALL PRIVILEGES ON job_db.* TO 'drpuser'@'%';
 GRANT ALL PRIVILEGES ON shift_db.* TO 'drpuser'@'%';
 GRANT ALL PRIVILEGES ON hr_db.* TO 'drpuser'@'%'; -- <-- NEU: Berechtigungen für hr_db hinzufügen
+GRANT ALL PRIVILEGES ON payroll_db.* TO 'drpuser'@'%';
 
 FLUSH PRIVILEGES;
