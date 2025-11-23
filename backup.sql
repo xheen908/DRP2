@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS `roles` (
   UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Definiert die Systemrollen und deren Workflow-Pfad';
 
--- Exportiere Daten aus Tabelle auth_db.roles: ~4 rows (ungefähr)
+-- Exportiere Daten aus Tabelle auth_db.roles: ~3 rows (ungefähr)
 INSERT INTO `roles` (`id`, `name`, `description`, `is_time_tracker_required`, `can_manage_users`) VALUES
 	(1, 'Admin', 'Volle administrative Kontrolle.', 0, 1),
 	(2, 'Manager', 'Manager-Rolle mit vollem Zugriff auf operative Funktionen.', 0, 1),
@@ -90,6 +90,25 @@ INSERT INTO `clients` (`id`, `name`, `contact_person`, `email`, `phone`, `addres
 CREATE DATABASE IF NOT EXISTS `hr_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 USE `hr_db`;
 
+-- Exportiere Struktur von Tabelle hr_db.emergency_contacts
+CREATE TABLE IF NOT EXISTS `emergency_contacts` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `employee_id` int NOT NULL,
+  `full_name` varchar(255) NOT NULL,
+  `relationship` varchar(100) DEFAULT NULL,
+  `phone_number` varchar(50) NOT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `employee_id` (`employee_id`),
+  CONSTRAINT `emergency_contacts_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Exportiere Daten aus Tabelle hr_db.emergency_contacts: ~0 rows (ungefähr)
+INSERT INTO `emergency_contacts` (`id`, `employee_id`, `full_name`, `relationship`, `phone_number`, `email`, `created_at`, `updated_at`) VALUES
+	(1, 1, 'Reiner Manager', 'Vater', '+491789456234', 'reiner.manager@exaple.com', '2025-11-22 23:37:37', '2025-11-22 23:37:38');
+
 -- Exportiere Struktur von Tabelle hr_db.employees
 CREATE TABLE IF NOT EXISTS `employees` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -97,14 +116,20 @@ CREATE TABLE IF NOT EXISTS `employees` (
   `first_name` varchar(255) NOT NULL,
   `last_name` varchar(255) NOT NULL,
   `email` varchar(255) DEFAULT NULL,
+  `gender` varchar(10) DEFAULT NULL,
+  `marital_status` enum('Ledig','Verheiratet','Geschieden','Verwitwet','Eingetragene Partnerschaft','Unbekannt') DEFAULT NULL,
+  `nationality` varchar(255) DEFAULT NULL,
   `date_of_birth` date DEFAULT NULL,
+  `private_phone` varchar(50) DEFAULT NULL,
   `date_of_hire` date NOT NULL,
   `department` varchar(255) DEFAULT NULL,
+  `work_location` varchar(255) DEFAULT NULL,
+  `work_schedule_type` enum('Vollzeit','Teilzeit','Schichtarbeit','Gleitzeit','Minijob','Werkstudent','Praktikum','Ausbildung','Unbekannt') DEFAULT NULL,
+  `annual_leave_entitlement` int DEFAULT '0',
   `salary` decimal(10,2) DEFAULT NULL,
   `status` enum('active','inactive','on_leave','terminated') DEFAULT 'active',
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
-  `position` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`),
   UNIQUE KEY `user_id_2` (`user_id`),
@@ -119,6 +144,25 @@ CREATE TABLE IF NOT EXISTS `employees` (
   UNIQUE KEY `user_id_11` (`user_id`),
   UNIQUE KEY `user_id_12` (`user_id`),
   UNIQUE KEY `user_id_13` (`user_id`),
+  UNIQUE KEY `user_id_14` (`user_id`),
+  UNIQUE KEY `user_id_15` (`user_id`),
+  UNIQUE KEY `user_id_16` (`user_id`),
+  UNIQUE KEY `user_id_17` (`user_id`),
+  UNIQUE KEY `user_id_18` (`user_id`),
+  UNIQUE KEY `user_id_19` (`user_id`),
+  UNIQUE KEY `user_id_20` (`user_id`),
+  UNIQUE KEY `user_id_21` (`user_id`),
+  UNIQUE KEY `user_id_22` (`user_id`),
+  UNIQUE KEY `user_id_23` (`user_id`),
+  UNIQUE KEY `user_id_24` (`user_id`),
+  UNIQUE KEY `user_id_25` (`user_id`),
+  UNIQUE KEY `user_id_26` (`user_id`),
+  UNIQUE KEY `user_id_27` (`user_id`),
+  UNIQUE KEY `user_id_28` (`user_id`),
+  UNIQUE KEY `user_id_29` (`user_id`),
+  UNIQUE KEY `user_id_30` (`user_id`),
+  UNIQUE KEY `user_id_31` (`user_id`),
+  UNIQUE KEY `user_id_32` (`user_id`),
   UNIQUE KEY `email` (`email`),
   UNIQUE KEY `email_2` (`email`),
   UNIQUE KEY `email_3` (`email`),
@@ -131,14 +175,108 @@ CREATE TABLE IF NOT EXISTS `employees` (
   UNIQUE KEY `email_10` (`email`),
   UNIQUE KEY `email_11` (`email`),
   UNIQUE KEY `email_12` (`email`),
-  UNIQUE KEY `email_13` (`email`)
+  UNIQUE KEY `email_13` (`email`),
+  UNIQUE KEY `email_14` (`email`),
+  UNIQUE KEY `email_15` (`email`),
+  UNIQUE KEY `email_16` (`email`),
+  UNIQUE KEY `email_17` (`email`),
+  UNIQUE KEY `email_18` (`email`),
+  UNIQUE KEY `email_19` (`email`),
+  UNIQUE KEY `email_20` (`email`),
+  UNIQUE KEY `email_21` (`email`),
+  UNIQUE KEY `email_22` (`email`),
+  UNIQUE KEY `email_23` (`email`),
+  UNIQUE KEY `email_24` (`email`),
+  UNIQUE KEY `email_25` (`email`),
+  UNIQUE KEY `email_26` (`email`),
+  UNIQUE KEY `email_27` (`email`),
+  UNIQUE KEY `email_28` (`email`),
+  UNIQUE KEY `email_29` (`email`),
+  UNIQUE KEY `email_30` (`email`),
+  UNIQUE KEY `email_31` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Exportiere Daten aus Tabelle hr_db.employees: ~3 rows (ungefähr)
-INSERT INTO `employees` (`id`, `user_id`, `first_name`, `last_name`, `email`, `date_of_birth`, `date_of_hire`, `department`, `salary`, `status`, `created_at`, `updated_at`, `position`) VALUES
-	(1, 1006, 'Sarah', 'Manager', 'sarah.manager@example.com', '1985-05-15', '2020-01-10', 'Management', 65000.00, 'active', '2025-11-22 12:15:51', '2025-11-22 12:15:51', NULL),
-	(2, 1009, 'Dieter', 'Disponent', 'dieter.disponent@example.com', '1990-08-20', '2021-03-01', 'Operations', 52000.00, 'active', '2025-11-22 12:15:51', '2025-11-22 12:15:51', NULL),
-	(3, 1015, 'Ronny', 'Weber', 'ronny.weber@example.com', '1992-11-01', '2022-07-15', 'Team1', 45000.00, 'active', '2025-11-22 12:15:51', '2025-11-22 21:05:00', NULL);
+INSERT INTO `employees` (`id`, `user_id`, `first_name`, `last_name`, `email`, `gender`, `marital_status`, `nationality`, `date_of_birth`, `private_phone`, `date_of_hire`, `department`, `work_location`, `work_schedule_type`, `annual_leave_entitlement`, `salary`, `status`, `created_at`, `updated_at`) VALUES
+	(1, 1006, 'Sarah', 'Manager', 'sarah.manager@example.com', 'Weiblich', 'Verheiratet', 'Deutsch', '1985-05-15', '+49123456789', '2020-01-10', 'Management', 'Verwaltung', 'Vollzeit', 34, 65000.00, 'active', '2025-11-22 12:15:51', '2025-11-23 00:02:11'),
+	(2, 1009, 'Dieter', 'Disponent', 'dieter.disponent@example.com', NULL, NULL, NULL, '1990-08-20', NULL, '2021-03-01', 'Operations', NULL, NULL, 0, 52000.00, 'active', '2025-11-22 12:15:51', '2025-11-22 12:15:51'),
+	(3, 1015, 'Ronny', 'Weber', 'xheen908@gmail.com', 'Männlich', 'Ledig', 'Deutsch', '1992-11-01', '017686304472', '2022-07-15', 'Team1', NULL, 'Vollzeit', 0, 45000.00, 'active', '2025-11-22 12:15:51', '2025-11-23 00:38:54');
+
+-- Exportiere Struktur von Tabelle hr_db.employee_addresses
+CREATE TABLE IF NOT EXISTS `employee_addresses` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `employee_id` int NOT NULL,
+  `address_type` enum('privat','dienstlich','rechnung','versand','andere') NOT NULL,
+  `street` varchar(255) NOT NULL,
+  `house_number` varchar(50) DEFAULT NULL,
+  `zip_code` varchar(20) NOT NULL,
+  `city` varchar(255) NOT NULL,
+  `country` varchar(255) NOT NULL,
+  `is_primary` tinyint(1) DEFAULT '0',
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `employee_id` (`employee_id`),
+  CONSTRAINT `employee_addresses_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Exportiere Daten aus Tabelle hr_db.employee_addresses: ~2 rows (ungefähr)
+INSERT INTO `employee_addresses` (`id`, `employee_id`, `address_type`, `street`, `house_number`, `zip_code`, `city`, `country`, `is_primary`, `created_at`, `updated_at`) VALUES
+	(1, 1, 'privat', 'Albertstr', '7', '47059', 'Duisburg', 'Deutschland', 1, '2025-11-22 23:25:41', '2025-11-23 00:01:27'),
+	(6, 3, 'privat', 'Ruhrorter Str.', '86', '47059', 'Duisburg', 'Deutschland', 1, '2025-11-23 00:38:54', '2025-11-23 00:38:54');
+
+-- Exportiere Struktur von Tabelle hr_db.employee_bank_details
+CREATE TABLE IF NOT EXISTS `employee_bank_details` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `employee_id` int NOT NULL,
+  `bank_name` varchar(255) DEFAULT NULL,
+  `iban` varchar(34) NOT NULL,
+  `bic` varchar(11) DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `employee_id` (`employee_id`),
+  CONSTRAINT `employee_bank_details_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Exportiere Daten aus Tabelle hr_db.employee_bank_details: ~0 rows (ungefähr)
+INSERT INTO `employee_bank_details` (`id`, `employee_id`, `bank_name`, `iban`, `bic`, `created_at`, `updated_at`) VALUES
+	(1, 1, 'Demo Bank Deutschland', 'DE89370400440532013000', 'COBADEFFXXX', '2025-11-22 23:27:48', '2025-11-22 23:27:49'),
+	(2, 3, 'Demo Bank Deutschland', 'LT873250023892918805', 'COBADEFFXXX', '2025-11-23 00:38:54', '2025-11-23 00:38:54');
+
+-- Exportiere Struktur von Tabelle hr_db.employee_tax_social_security
+CREATE TABLE IF NOT EXISTS `employee_tax_social_security` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `employee_id` int NOT NULL,
+  `tax_id_number` varchar(14) NOT NULL,
+  `social_security_number` varchar(12) NOT NULL,
+  `tax_class` int DEFAULT NULL,
+  `child_allowances` decimal(3,1) DEFAULT '0.0',
+  `church_tax_applicable` tinyint(1) DEFAULT '0',
+  `religion` varchar(255) DEFAULT NULL,
+  `additional_tax_allowances` decimal(10,2) DEFAULT '0.00',
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `employee_id` (`employee_id`),
+  UNIQUE KEY `tax_id_number` (`tax_id_number`),
+  UNIQUE KEY `social_security_number` (`social_security_number`),
+  UNIQUE KEY `tax_id_number_2` (`tax_id_number`),
+  UNIQUE KEY `social_security_number_2` (`social_security_number`),
+  UNIQUE KEY `tax_id_number_3` (`tax_id_number`),
+  UNIQUE KEY `tax_id_number_4` (`tax_id_number`),
+  UNIQUE KEY `tax_id_number_5` (`tax_id_number`),
+  UNIQUE KEY `tax_id_number_6` (`tax_id_number`),
+  UNIQUE KEY `social_security_number_3` (`social_security_number`),
+  UNIQUE KEY `tax_id_number_7` (`tax_id_number`),
+  UNIQUE KEY `social_security_number_4` (`social_security_number`),
+  CONSTRAINT `employee_tax_social_security_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Exportiere Daten aus Tabelle hr_db.employee_tax_social_security: ~0 rows (ungefähr)
+INSERT INTO `employee_tax_social_security` (`id`, `employee_id`, `tax_id_number`, `social_security_number`, `tax_class`, `child_allowances`, `church_tax_applicable`, `religion`, `additional_tax_allowances`, `created_at`, `updated_at`) VALUES
+	(1, 1, '12345678901', '12345678M123', 3, 0.5, 1, 'Evangelisch', 0.00, '2025-11-22 23:34:19', '2025-11-23 00:02:11'),
+	(7, 3, '12345678902', '12345678M122', 1, 0.0, 1, 'Evangelisch', 0.00, '2025-11-23 00:36:15', '2025-11-23 00:38:54');
 
 
 -- Exportiere Datenbank-Struktur für job_db
@@ -192,7 +330,8 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   UNIQUE KEY `job_number_22` (`job_number`),
   UNIQUE KEY `job_number_23` (`job_number`),
   UNIQUE KEY `job_number_24` (`job_number`),
-  UNIQUE KEY `job_number_25` (`job_number`)
+  UNIQUE KEY `job_number_25` (`job_number`),
+  UNIQUE KEY `job_number_26` (`job_number`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2016 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Verwaltet die aktiven AuftrÃ¤ge';
 
 -- Exportiere Daten aus Tabelle job_db.jobs: ~6 rows (ungefähr)

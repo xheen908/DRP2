@@ -78,6 +78,23 @@ CREATE TABLE IF NOT EXISTS `clients` (
 CREATE DATABASE IF NOT EXISTS `hr_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 USE `hr_db`;
 
+-- Exportiere Struktur von Tabelle hr_db.emergency_contacts
+CREATE TABLE IF NOT EXISTS `emergency_contacts` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `employee_id` int NOT NULL,
+  `full_name` varchar(255) NOT NULL,
+  `relationship` varchar(100) DEFAULT NULL,
+  `phone_number` varchar(50) NOT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `employee_id` (`employee_id`),
+  CONSTRAINT `emergency_contacts_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Daten-Export vom Benutzer nicht ausgewählt
+
 -- Exportiere Struktur von Tabelle hr_db.employees
 CREATE TABLE IF NOT EXISTS `employees` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -85,14 +102,20 @@ CREATE TABLE IF NOT EXISTS `employees` (
   `first_name` varchar(255) NOT NULL,
   `last_name` varchar(255) NOT NULL,
   `email` varchar(255) DEFAULT NULL,
+  `gender` varchar(10) DEFAULT NULL,
+  `marital_status` enum('Ledig','Verheiratet','Geschieden','Verwitwet','Eingetragene Partnerschaft','Unbekannt') DEFAULT NULL,
+  `nationality` varchar(255) DEFAULT NULL,
   `date_of_birth` date DEFAULT NULL,
+  `private_phone` varchar(50) DEFAULT NULL,
   `date_of_hire` date NOT NULL,
   `department` varchar(255) DEFAULT NULL,
+  `work_location` varchar(255) DEFAULT NULL,
+  `work_schedule_type` enum('Vollzeit','Teilzeit','Schichtarbeit','Gleitzeit','Minijob','Werkstudent','Praktikum','Ausbildung','Unbekannt') DEFAULT NULL,
+  `annual_leave_entitlement` int DEFAULT '0',
   `salary` decimal(10,2) DEFAULT NULL,
   `status` enum('active','inactive','on_leave','terminated') DEFAULT 'active',
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
-  `position` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`),
   UNIQUE KEY `user_id_2` (`user_id`),
@@ -107,6 +130,25 @@ CREATE TABLE IF NOT EXISTS `employees` (
   UNIQUE KEY `user_id_11` (`user_id`),
   UNIQUE KEY `user_id_12` (`user_id`),
   UNIQUE KEY `user_id_13` (`user_id`),
+  UNIQUE KEY `user_id_14` (`user_id`),
+  UNIQUE KEY `user_id_15` (`user_id`),
+  UNIQUE KEY `user_id_16` (`user_id`),
+  UNIQUE KEY `user_id_17` (`user_id`),
+  UNIQUE KEY `user_id_18` (`user_id`),
+  UNIQUE KEY `user_id_19` (`user_id`),
+  UNIQUE KEY `user_id_20` (`user_id`),
+  UNIQUE KEY `user_id_21` (`user_id`),
+  UNIQUE KEY `user_id_22` (`user_id`),
+  UNIQUE KEY `user_id_23` (`user_id`),
+  UNIQUE KEY `user_id_24` (`user_id`),
+  UNIQUE KEY `user_id_25` (`user_id`),
+  UNIQUE KEY `user_id_26` (`user_id`),
+  UNIQUE KEY `user_id_27` (`user_id`),
+  UNIQUE KEY `user_id_28` (`user_id`),
+  UNIQUE KEY `user_id_29` (`user_id`),
+  UNIQUE KEY `user_id_30` (`user_id`),
+  UNIQUE KEY `user_id_31` (`user_id`),
+  UNIQUE KEY `user_id_32` (`user_id`),
   UNIQUE KEY `email` (`email`),
   UNIQUE KEY `email_2` (`email`),
   UNIQUE KEY `email_3` (`email`),
@@ -119,8 +161,93 @@ CREATE TABLE IF NOT EXISTS `employees` (
   UNIQUE KEY `email_10` (`email`),
   UNIQUE KEY `email_11` (`email`),
   UNIQUE KEY `email_12` (`email`),
-  UNIQUE KEY `email_13` (`email`)
+  UNIQUE KEY `email_13` (`email`),
+  UNIQUE KEY `email_14` (`email`),
+  UNIQUE KEY `email_15` (`email`),
+  UNIQUE KEY `email_16` (`email`),
+  UNIQUE KEY `email_17` (`email`),
+  UNIQUE KEY `email_18` (`email`),
+  UNIQUE KEY `email_19` (`email`),
+  UNIQUE KEY `email_20` (`email`),
+  UNIQUE KEY `email_21` (`email`),
+  UNIQUE KEY `email_22` (`email`),
+  UNIQUE KEY `email_23` (`email`),
+  UNIQUE KEY `email_24` (`email`),
+  UNIQUE KEY `email_25` (`email`),
+  UNIQUE KEY `email_26` (`email`),
+  UNIQUE KEY `email_27` (`email`),
+  UNIQUE KEY `email_28` (`email`),
+  UNIQUE KEY `email_29` (`email`),
+  UNIQUE KEY `email_30` (`email`),
+  UNIQUE KEY `email_31` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Daten-Export vom Benutzer nicht ausgewählt
+
+-- Exportiere Struktur von Tabelle hr_db.employee_addresses
+CREATE TABLE IF NOT EXISTS `employee_addresses` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `employee_id` int NOT NULL,
+  `address_type` enum('privat','dienstlich','rechnung','versand','andere') NOT NULL,
+  `street` varchar(255) NOT NULL,
+  `house_number` varchar(50) DEFAULT NULL,
+  `zip_code` varchar(20) NOT NULL,
+  `city` varchar(255) NOT NULL,
+  `country` varchar(255) NOT NULL,
+  `is_primary` tinyint(1) DEFAULT '0',
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `employee_id` (`employee_id`),
+  CONSTRAINT `employee_addresses_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Daten-Export vom Benutzer nicht ausgewählt
+
+-- Exportiere Struktur von Tabelle hr_db.employee_bank_details
+CREATE TABLE IF NOT EXISTS `employee_bank_details` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `employee_id` int NOT NULL,
+  `bank_name` varchar(255) DEFAULT NULL,
+  `iban` varchar(34) NOT NULL,
+  `bic` varchar(11) DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `employee_id` (`employee_id`),
+  CONSTRAINT `employee_bank_details_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Daten-Export vom Benutzer nicht ausgewählt
+
+-- Exportiere Struktur von Tabelle hr_db.employee_tax_social_security
+CREATE TABLE IF NOT EXISTS `employee_tax_social_security` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `employee_id` int NOT NULL,
+  `tax_id_number` varchar(14) NOT NULL,
+  `social_security_number` varchar(12) NOT NULL,
+  `tax_class` int DEFAULT NULL,
+  `child_allowances` decimal(3,1) DEFAULT '0.0',
+  `church_tax_applicable` tinyint(1) DEFAULT '0',
+  `religion` varchar(255) DEFAULT NULL,
+  `additional_tax_allowances` decimal(10,2) DEFAULT '0.00',
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `employee_id` (`employee_id`),
+  UNIQUE KEY `tax_id_number` (`tax_id_number`),
+  UNIQUE KEY `social_security_number` (`social_security_number`),
+  UNIQUE KEY `tax_id_number_2` (`tax_id_number`),
+  UNIQUE KEY `social_security_number_2` (`social_security_number`),
+  UNIQUE KEY `tax_id_number_3` (`tax_id_number`),
+  UNIQUE KEY `tax_id_number_4` (`tax_id_number`),
+  UNIQUE KEY `tax_id_number_5` (`tax_id_number`),
+  UNIQUE KEY `tax_id_number_6` (`tax_id_number`),
+  UNIQUE KEY `social_security_number_3` (`social_security_number`),
+  UNIQUE KEY `tax_id_number_7` (`tax_id_number`),
+  UNIQUE KEY `social_security_number_4` (`social_security_number`),
+  CONSTRAINT `employee_tax_social_security_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Daten-Export vom Benutzer nicht ausgewählt
 
@@ -176,7 +303,8 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   UNIQUE KEY `job_number_22` (`job_number`),
   UNIQUE KEY `job_number_23` (`job_number`),
   UNIQUE KEY `job_number_24` (`job_number`),
-  UNIQUE KEY `job_number_25` (`job_number`)
+  UNIQUE KEY `job_number_25` (`job_number`),
+  UNIQUE KEY `job_number_26` (`job_number`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2016 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Verwaltet die aktiven AuftrÃ¤ge';
 
 -- Daten-Export vom Benutzer nicht ausgewählt
