@@ -10,6 +10,9 @@ node_modules/
 jspm_packages/
 web_modules/
 
+empty_db.sql
+backup.sql
+
 # Umgebungsvariablen
 .env
 .env.local
