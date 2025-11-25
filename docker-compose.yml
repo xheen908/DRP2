@@ -265,6 +265,35 @@ services:
     networks:
       - drp_network
 
+  payroll-service: # <-- NEUER SERVICE-BLOCK FÜR PAYROLL-SERVICE
+    build:
+      context: ./payroll-service
+      dockerfile: Dockerfile
+    container_name: drp_payroll_service
+    restart: always
+    ports:
+      - "3009:3009" # <-- Port für Payroll Service
+    volumes:
+      - "./payroll-service:/app"
+      - "./payroll-service/uploads:/app/uploads"
+    environment:
+      PORT: 3009 # Explizit den Port setzen
+      DB_HOST: mysql-db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASS}
+      DB_NAME: payroll_db # Eigene Datenbank für Payroll Service
+      HR_SERVICE_URL: http://hr-service:3008 # Für interne Kommunikation mit HR Service
+      AUTH_SERVICE_URL: http://auth-service:3001 # Für interne Kommunikation mit Auth Service
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      hr-service: # Payroll Service hängt vom HR Service ab
+        condition: service_started
+      auth-service: # Payroll Service hängt vom Auth Service ab
+        condition: service_started
+    networks:
+      - drp_network
+
   # --------------------------------------------------------------------------
   # Zentrale MySQL Datenbank-Dienst (ein Container, mehrere Datenbanken)
   # --------------------------------------------------------------------------

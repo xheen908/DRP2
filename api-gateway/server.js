@@ -16,7 +16,8 @@ const SHIFT_SERVICE_URL = process.env.SHIFT_SERVICE_URL;
 const LOCATION_SERVICE_URL = process.env.LOCATION_SERVICE_URL;
 const CLIENT_SERVICE_URL = process.env.CLIENT_SERVICE_URL;
 const FRONTEND_EJS_SERVICE_URL = process.env.FRONTEND_EJS_SERVICE_URL;
-const HR_SERVICE_URL = process.env.HR_SERVICE_URL; // <-- NEU: URL für HR Service
+const HR_SERVICE_URL = process.env.HR_SERVICE_URL;
+const PAYROLL_SERVICE_URL = process.env.PAYROLL_SERVICE_URL;
 const JWT_SECRET = process.env.JWT_SECRET;
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
@@ -27,8 +28,11 @@ if (!JWT_SECRET) {
 if (!FRONTEND_EJS_SERVICE_URL) {
     console.warn('WARNUNG: FRONTEND_EJS_SERVICE_URL ist im API Gateway nicht gesetzt. Frontend-Proxy könnte fehlschlagen.');
 }
-if (!HR_SERVICE_URL) { // <-- NEU: Warnung, falls HR_SERVICE_URL nicht gesetzt ist
+if (!HR_SERVICE_URL) {
     console.warn('WARNUNG: HR_SERVICE_URL ist im API Gateway nicht gesetzt. HR-Proxy könnte fehlschlagen.');
+}
+if (!PAYROLL_SERVICE_URL) {
+    console.warn('WARNUNG: PAYROLL_SERVICE_URL ist im API Gateway nicht gesetzt. Payroll-Proxy könnte fehlschlagen.');
 }
 
 app.use(cors({
@@ -58,6 +62,7 @@ app.use(helmet({
                 "'unsafe-inline'",
                 "https://cdnjs.cloudflare.com",
                 "https://cdn.tailwindcss.com",
+                "https://cdn.jsdelivr.net",
                 "https://fonts.googleapis.com"
             ],
             imgSrc: ["'self'", "data:", "https://maps.googleapis.com", "https://*.gstatic.com"],
@@ -71,13 +76,14 @@ app.use(helmet({
                 LOCATION_SERVICE_URL,
                 CLIENT_SERVICE_URL,
                 FRONTEND_EJS_SERVICE_URL,
-                HR_SERVICE_URL, // <-- NEU: HR Service URL zur CSP hinzufügen
+                HR_SERVICE_URL,
+                PAYROLL_SERVICE_URL,
                 "https://maps.googleapis.com",
                 "https://*.googleapis.com",
                 "https://*.gstatic.com",
                 "https://cdnjs.cloudflare.com"
             ],
-            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"], // <-- AKTUALISIERT: Cloudflare CDN für Fonts hinzugefügt
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
             frameSrc: [
                 "'self'",
                 "https://www.google.com/",
@@ -134,7 +140,6 @@ const setUserHeaders = (proxyReqOpts, originalReq) => {
     delete proxyReqOpts.headers['x-user-roles'];
     delete proxyReqOpts.headers['x-user-email'];
     delete proxyReqOpts.headers['x-user-username']; 
-    // WICHTIG: Auch vorhandenen Authorization-Header löschen, um Duplikate oder veraltete Tokens zu vermeiden
     delete proxyReqOpts.headers['authorization'];
 
     if (originalReq.user) {
@@ -145,7 +150,6 @@ const setUserHeaders = (proxyReqOpts, originalReq) => {
         proxyReqOpts.headers['X-User-Username'] = originalReq.user.username || ''; 
     }
 
-    // NEU: Authorization-Header weiterleiten, falls im Original-Request oder Cookie vorhanden
     const originalAuthHeader = originalReq.headers['authorization'];
     if (originalAuthHeader) {
         proxyReqOpts.headers['Authorization'] = originalAuthHeader;
@@ -161,10 +165,6 @@ const setUserHeaders = (proxyReqOpts, originalReq) => {
 app.use('/api/auth', httpProxy(AUTH_SERVICE_URL, {
     proxyReqPathResolver: req => req.url
 }));
-
-// PROXY-REGELN FÜR USER-ENDPUNKTE
-// Wichtig: Die Reihenfolge der app.use-Statements ist entscheidend.
-// Spezifischere Routen (z.B. /api/users/roles) müssen vor allgemeineren Routen (/api/users) stehen.
 
 app.use('/api/users/roles', authenticateGateway, httpProxy(AUTH_SERVICE_URL, { 
     proxyReqPathResolver: req => {
@@ -183,45 +183,35 @@ app.use('/api/users', authenticateGateway, httpProxy(AUTH_SERVICE_URL, {
     },
     proxyReqOptDecorator: setUserHeaders
 }));
-// ENDE PROXY-REGELN FÜR USER
 
 app.use('/api/jobs', authenticateGateway, httpProxy(JOB_SERVICE_URL, {
     proxyReqPathResolver: req => req.url,
     proxyReqOptDecorator: setUserHeaders
 }));
 
-// PROXY-REGELN FÜR SHIFT-ENDPUNKTE (Aktualisiert)
-// Stellen Sie sicher, dass spezifischere Routen vor allgemeineren stehen.
-
-// Proxy für Schichtstatus nach Benutzer-ID
 app.get('/api/shifts/status/:userId', authenticateGateway, httpProxy(SHIFT_SERVICE_URL, {
     proxyReqPathResolver: req => `/api/shifts/status/${req.params.userId}`,
     proxyReqOptDecorator: setUserHeaders
 }));
 
-// Proxy für Check-in
 app.post('/api/shifts/checkin', authenticateGateway, httpProxy(SHIFT_SERVICE_URL, {
-    proxyReqPathResolver: req => `/api/shifts/checkin`, // Korrigierter Pfad
+    proxyReqPathResolver: req => `/api/shifts/checkin`,
     proxyReqOptDecorator: setUserHeaders
 }));
 
-// Proxy für Check-out
 app.post('/api/shifts/checkout', authenticateGateway, httpProxy(SHIFT_SERVICE_URL, {
-    proxyReqPathResolver: req => `/api/shifts/checkout`, // Korrigierter Pfad
+    proxyReqPathResolver: req => `/api/shifts/checkout`,
     proxyReqOptDecorator: setUserHeaders
 }));
 
-// Proxy für Schichten nach Benutzer-ID (wichtig für user_shifts_view.ejs)
 app.get('/api/shifts/user/:userId', authenticateGateway, httpProxy(SHIFT_SERVICE_URL, {
-    proxyReqPathResolver: req => `/api/shifts/user/${req.params.userId}`, // Korrigierter Pfad
+    proxyReqPathResolver: req => `/api/shifts/user/${req.params.userId}`,
     proxyReqOptDecorator: setUserHeaders
 }));
 
-// NEUE REGEL: Proxy für /api/locations/clients-for-dropdown an den Client Service
-// Dies muss VOR der allgemeineren '/api/locations' Regel stehen
 app.get('/api/locations/clients-for-dropdown', authenticateGateway, httpProxy(CLIENT_SERVICE_URL, {
     proxyReqPathResolver: req => {
-        const resolvedPath = `/clients-for-dropdown`; // Der Client Service sollte diesen Pfad erwarten
+        const resolvedPath = `/clients-for-dropdown`;
         console.log(`[API Gateway Proxy] Spezifische Proxy-Regel für /api/locations/clients-for-dropdown aktiv: Leite ${req.originalUrl} weiter als ${resolvedPath} an ${CLIENT_SERVICE_URL}`);
         return resolvedPath;
     },
@@ -238,10 +228,8 @@ app.get('/api/locations/clients-for-dropdown', authenticateGateway, httpProxy(CL
     }
 }));
 
-// NEUE REGEL: Proxy für /api/locations/validate-company-location an den Location Service
-// Dies muss VOR der allgemeineren '/api/locations' Regel stehen
 app.post('/api/locations/validate-company-location', authenticateGateway, httpProxy(LOCATION_SERVICE_URL, {
-    proxyReqPathResolver: req => `/api/locations/validate-company-location`, // Der Location Service sollte diesen Pfad erwarten
+    proxyReqPathResolver: req => `/api/locations/validate-company-location`,
     proxyReqOptDecorator: setUserHeaders,
     proxyErrorHandler: (err, res, next) => {
         console.error(`[API Gateway Proxy Error] Fehler beim Weiterleiten von /api/locations/validate-company-location-Anfrage an ${LOCATION_SERVICE_URL}:`, err.code, err.message);
@@ -280,11 +268,8 @@ app.use('/api/clients', authenticateGateway, httpProxy(CLIENT_SERVICE_URL, {
     proxyReqOptDecorator: setUserHeaders
 }));
 
-// NEU: PROXY-REGELN FÜR HR-ENDPUNKTE
 app.use('/api/hr', authenticateGateway, httpProxy(HR_SERVICE_URL, {
     proxyReqPathResolver: req => {
-        // Da der HR Service selbst Routen unter '/api/hr' definiert,
-        // müssen wir den Pfad 1:1 weiterleiten (req.url enthält bereits /employees, /employees/:id etc.)
         const resolvedPath = req.url; 
         console.log(`[API Gateway Proxy] /api/hr Proxy aktiv: Leite ${req.originalUrl} weiter als ${resolvedPath} an ${HR_SERVICE_URL}`);
         return resolvedPath;
@@ -302,8 +287,48 @@ app.use('/api/hr', authenticateGateway, httpProxy(HR_SERVICE_URL, {
     }
 }));
 
+app.use('/api/payroll', authenticateGateway, httpProxy(PAYROLL_SERVICE_URL, {
+    proxyReqPathResolver: req => {
+        const resolvedPath = req.originalUrl;
+        console.log(`[API Gateway Proxy] /api/payroll Proxy aktiv: Leite ${req.originalUrl} weiter als ${resolvedPath} an ${PAYROLL_SERVICE_URL}`);
+        return resolvedPath;
+    },
+    proxyReqOptDecorator: setUserHeaders,
+    proxyErrorHandler: (err, res, next) => {
+        console.error(`[API Gateway Proxy Error] Fehler beim Weiterleiten von /api/payroll-Anfrage an ${PAYROLL_SERVICE_URL}:`, err.code, err.message);
+        if (!res.headersSent) {
+            if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                res.status(503).json({ message: `Payroll Service nicht verfügbar oder nicht erreichbar: ${err.message}` });
+            } else {
+                res.status(500).json({ message: `Proxy-Fehler beim Abrufen von Payroll-Daten: ${err.message}` });
+            }
+        }
+    }
+}));
 
-// NEUE MIDDLEWARE FÜR BESSERES DEBUGGING VON /PUBLIC UND /UPLOADS
+// NEUE PROXY-REGEL FÜR PAYROLL-DOKUMENTE (GET-Anfragen für generierte PDFs)
+app.get('/admin/proxy-payroll-documents/uploads/*', authenticateGateway, httpProxy(PAYROLL_SERVICE_URL, {
+    proxyReqPathResolver: req => {
+        // req.url enthält den Pfad nach dem gematchten Muster in app.get, also z.B. /uploads/gehaltsabrechnung_13_2025_11.pdf
+        // Dieser Pfad ist bereits korrekt für den Payroll Service.
+        const resolvedPath = req.url; 
+        console.log(`[API Gateway Proxy] /admin/proxy-payroll-documents/uploads/* Proxy aktiv: Leite ${req.originalUrl} weiter als ${resolvedPath} an ${PAYROLL_SERVICE_URL}`);
+        return resolvedPath;
+    },
+    proxyReqOptDecorator: setUserHeaders,
+    proxyErrorHandler: (err, res, next) => {
+        console.error(`[API Gateway Proxy Error] Fehler beim Weiterleiten von /admin/proxy-payroll-documents/uploads/*-Anfrage an ${PAYROLL_SERVICE_URL}:`, err.code, err.message);
+        if (!res.headersSent) {
+            if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                res.status(503).json({ message: `Payroll Service nicht verfügbar oder nicht erreichbar: ${err.message}` });
+            } else {
+                res.status(500).json({ message: `Proxy-Fehler beim Abrufen von Payroll-Dokumenten: ${err.message}` });
+            }
+        }
+    }
+}));
+
+
 app.use((req, res, next) => {
     if (req.path.startsWith('/public') || req.path.startsWith('/uploads')) {
         console.log(`[API Gateway Proxy Debug] Anfrage für statische Assets: ${req.method} ${req.path}`);
@@ -350,7 +375,6 @@ app.use('/', authenticateGateway, httpProxy(FRONTEND_EJS_SERVICE_URL, {
         return req.url;
     },
     proxyReqOptDecorator: (proxyReqOpts, originalReq) => {
-        // Hier rufen wir setUserHeaders auf, das jetzt den Authorization-Header korrekt propagiert
         proxyReqOpts = setUserHeaders(proxyReqOpts, originalReq);
         
         proxyReqOpts.headers['X-Google-Maps-API-Key'] = GOOGLE_MAPS_API_KEY || '';

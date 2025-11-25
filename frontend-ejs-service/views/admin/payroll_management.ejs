@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payroll Management - DRP2</title>
+    <!-- Tailwind CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .grid-cols-2-auto {
+            grid-template-columns: auto 1fr;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        /* Optional: Basic responsive adjustments */
+        @media (max-width: 768px) {
+            .grid-cols-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <%- include('../partials/header') %>
+
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Payroll Management</h1>
+
+        <!-- Payroll Runs Section -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Gehaltsabrechnungsläufe</h2>
+            <button id="openAddPayrollRunModal" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded mb-4">
+                Neuen Abrechnungslauf erstellen
+            </button>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-gray-300">
+                    <thead>
+                        <tr class="w-full bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                            <th class="py-3 px-6 text-left">ID</th>
+                            <th class="py-3 px-6 text-left">Monat/Jahr</th>
+                            <th class="py-3 px-6 text-left">Laufdatum</th>
+                            <th class="py-3 px-6 text-left">Status</th>
+                            <th class="py-3 px-6 text-left">Brutto Gesamt</th>
+                            <th class="py-3 px-6 text-left">Netto Gesamt</th>
+                            <th class="py-3 px-6 text-center">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payrollRunsTableBody" class="text-gray-700 text-sm">
+                        <!-- Payroll Runs werden hier dynamisch geladen -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Payslips Section (Optional: kann auch in einem Modal oder separater Seite angezeigt werden) -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Einzelne Gehaltsabrechnungen (Payslips)</h2>
+            <p class="text-gray-600 mb-4">Wählen Sie einen Abrechnungslauf aus der Tabelle oben, um dessen Payslips anzuzeigen.</p>
+            <div id="payslipsDetails" class="hidden">
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">Payslips für Lauf: <span id="payslipRunMonthYear"></span></h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-300">
+                        <thead>
+                            <tr class="w-full bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">Payslip ID</th>
+                                <th class="py-3 px-6 text-left">Mitarbeiter ID</th>
+                                <th class="py-3 px-6 text-left">Brutto</th>
+                                <th class="py-3 px-6 text-left">Netto</th>
+                                <th class="py-3 px-6 text-left">Lohnsteuer</th>
+                                <th class="py-3 px-6 text-left">SV Gesamt</th>
+                                <th class="py-3 px-6 text-left">Status</th>
+                                <th class="py-3 px-6 text-center">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payslipsTableBody" class="text-gray-700 text-sm">
+                            <!-- Payslips werden hier dynamisch geladen -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Payroll Run Modal -->
+    <div id="addPayrollRunModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Neuen Abrechnungslauf erstellen</h2>
+            <form id="addPayrollRunForm">
+                <div class="mb-4">
+                    <label for="payrollMonth" class="block text-sm font-medium text-gray-700">Monat</label>
+                    <select id="payrollMonth" name="month" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
+                        <option value="">Monat auswählen</option>
+                        <option value="1">Januar</option>
+                        <option value="2">Februar</option>
+                        <option value="3">März</option>
+                        <option value="4">April</option>
+                        <option value="5">Mai</option>
+                        <option value="6">Juni</option>
+                        <option value="7">Juli</option>
+                        <option value="8">August</option>
+                        <option value="9">September</option>
+                        <option value="10">Oktober</option>
+                        <option value="11">November</option>
+                        <option value="12">Dezember</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="payrollYear" class="block text-sm font-medium text-gray-700">Jahr</label>
+                    <input type="number" id="payrollYear" name="year" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" min="2000" required>
+                </div>
+                <!-- NEUE FELDER FÜR createdByUserId und employeeIds -->
+                <div class="mb-4">
+                    <label for="createdByUserId" class="block text-sm font-medium text-gray-700">Ersteller-ID</label>
+                    <!-- Hier verwenden wir die user.id aus dem EJS-Kontext -->
+                    <input type="text" id="createdByUserId" name="createdByUserId" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm bg-gray-100" value="<%= user.id %>" readonly>
+                </div>
+                <div class="mb-4">
+                    <label for="employeeIds" class="block text-sm font-medium text-gray-700">Mitarbeiter-IDs (Komma-getrennt)</label>
+                    <input type="text" id="employeeIds" name="employeeIds" placeholder="z.B. 1,2,3" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" required>
+                    <p class="text-xs text-gray-500 mt-1">Geben Sie die IDs der Mitarbeiter ein, für die dieser Abrechnungslauf gelten soll.</p>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" id="closeAddPayrollRunModal" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Abbrechen</button>
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Erstellen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        const PAYROLL_PROXY_BASE_URL = '/admin/proxy-payroll';
+        const HR_PROXY_BASE_URL = '/admin/proxy-hr';
+        const PAYROLL_DOCS_PROXY_BASE_URL = '/admin/proxy-payroll-documents'; // NEU: Für PDF-Download
+
+        const payrollRunsTableBody = document.getElementById('payrollRunsTableBody');
+        const payslipsTableBody = document.getElementById('payslipsTableBody');
+        const payslipsDetails = document.getElementById('payslipsDetails');
+        const payslipRunMonthYear = document.getElementById('payslipRunMonthYear');
+
+        const addPayrollRunModal = document.getElementById('addPayrollRunModal');
+        const openAddPayrollRunModalBtn = document.getElementById('openAddPayrollRunModal');
+        const closeAddPayrollRunModalBtn = document.getElementById('closeAddPayrollRunModal');
+        const addPayrollRunForm = document.getElementById('addPayrollRunForm');
+        const payrollMonthInput = document.getElementById('payrollMonth');
+        const payrollYearInput = document.getElementById('payrollYear');
+        const createdByUserIdInput = document.getElementById('createdByUserId');
+        const employeeIdsInput = document.getElementById('employeeIds');
+
+        let currentPayrollRunId = null;
+
+        // --- Modals Steuerung ---
+        openAddPayrollRunModalBtn.addEventListener('click', async () => {
+            const currentYear = new Date().getFullYear();
+            payrollYearInput.value = currentYear;
+            payrollMonthInput.value = new Date().getMonth() + 1;
+
+            try {
+                const employees = await fetchEmployees();
+                if (employees && employees.length > 0) {
+                    employeeIdsInput.value = employees.map(emp => emp.id).join(',');
+                } else {
+                    employeeIdsInput.value = '';
+                    alert('Keine Mitarbeiter vom HR-Service gefunden. Bitte manuell eingeben.');
+                }
+            } catch (error) {
+                console.error("Fehler beim Laden der Mitarbeiter für die Payroll-Erstellung:", error);
+                alert("Fehler beim Laden der Mitarbeiter-IDs. Bitte manuell eingeben.");
+                employeeIdsInput.value = '';
+            }
+
+            addPayrollRunModal.classList.remove('hidden');
+        });
+
+        closeAddPayrollRunModalBtn.addEventListener('click', () => {
+            addPayrollRunModal.classList.add('hidden');
+            addPayrollRunForm.reset();
+        });
+
+        // --- Fetch Funktionen ---
+
+        async function fetchEmployees() {
+            try {
+                const response = await fetch(`${HR_PROXY_BASE_URL}/employees`);
+                if (response.status === 401 || response.status === 403) {
+                    alert('Nicht autorisiert. Bitte melden Sie sich an.');
+                    window.location.href = '/login';
+                    return;
+                }
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`HTTP-Fehler! Status: ${response.status}. Nachricht: ${errorData.message || response.statusText}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error("Fehler beim Abrufen der Mitarbeiterdaten:", error);
+                throw error;
+            }
+        }
+
+
+        async function fetchPayrollRuns() {
+            try {
+                const response = await fetch(`${PAYROLL_PROXY_BASE_URL}/runs`);
+
+                if (response.status === 401 || response.status === 403) {
+                    alert('Nicht autorisiert. Bitte melden Sie sich an.');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`HTTP-Fehler! Status: ${response.status}. Nachricht: ${errorData.message || response.statusText}`);
+                }
+
+                const runs = await response.json();
+                displayPayrollRuns(runs);
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Gehaltsabrechnungsläufe:', error);
+                alert('Fehler beim Laden der Abrechnungsläufe.');
+            }
+        }
+
+        async function fetchPayslipsForRun(payrollRunId, month, year) {
+            try {
+                const response = await fetch(`${PAYROLL_PROXY_BASE_URL}/runs/${payrollRunId}`);
+
+                if (response.status === 401 || response.status === 403) {
+                    alert('Nicht autorisiert. Bitte melden Sie sich an.');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`HTTP-Fehler! Status: ${response.status}. Nachricht: ${errorData.message || response.statusText}`);
+                }
+
+                const payrollRun = await response.json();
+                displayPayslips(payrollRun.payslips || [], month, year);
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Payslips:', error);
+                alert('Fehler beim Laden der Payslips.');
+            }
+        }
+
+        // --- Display Funktionen ---
+        function displayPayrollRuns(runs) {
+            payrollRunsTableBody.innerHTML = '';
+            const monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+
+            runs.forEach(run => {
+                const row = payrollRunsTableBody.insertRow();
+                const runDate = run.createdAt ? new Date(run.createdAt).toLocaleDateString() : 'N/A';
+                row.innerHTML = `
+                    <td class="py-3 px-6 text-left whitespace-nowrap">${run.id}</td>
+                    <td class="py-3 px-6 text-left">${monthNames[run.month - 1]} ${run.year}</td>
+                    <td class="py-3 px-6 text-left">${runDate}</td>
+                    <td class="py-3 px-6 text-left">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold 
+                            ${run.status === 'Pending' ? 'bg-yellow-200 text-yellow-800' : ''}
+                            ${run.status === 'Calculated' ? 'bg-blue-200 text-blue-800' : ''}
+                            ${run.status === 'Approved' ? 'bg-green-200 text-green-800' : ''}
+                            ${run.status === 'Paid' ? 'bg-purple-200 text-purple-800' : ''}
+                            ${run.status === 'Cancelled' ? 'bg-red-200 text-red-800' : ''}">
+                            ${run.status}
+                        </span>
+                    </td>
+                    <td class="py-3 px-6 text-left">${run.totalGrossSalary ? parseFloat(run.totalGrossSalary).toFixed(2) : '0.00'} €</td>
+                    <td class="py-3 px-6 text-left">${run.totalNetSalary ? parseFloat(run.totalNetSalary).toFixed(2) : '0.00'} €</td>
+                    <td class="py-3 px-6 text-center whitespace-nowrap">
+                        ${run.status === 'Pending' ? `<button onclick="calculateRun(${run.id})" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-3 rounded text-xs mr-2">Berechnen</button>` : ''}
+                        ${run.status === 'Calculated' ? `<button onclick="approveRun(${run.id})" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-1 px-3 rounded text-xs mr-2">Genehmigen</button>` : ''}
+                        ${run.status === 'Approved' ? `<button onclick="payRun(${run.id})" class="bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-3 rounded text-xs mr-2">Bezahlen</button>` : ''}
+                        <button onclick="viewPayslips(${run.id}, '${monthNames[run.month - 1]}', ${run.year})" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded text-xs mr-2">Payslips anzeigen</button>
+                        <button onclick="deleteRun(${run.id})" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-xs">Löschen</button>
+                    </td>
+                `;
+            });
+        }
+
+        function displayPayslips(payslips, monthName, year) {
+            payslipsTableBody.innerHTML = '';
+            payslipRunMonthYear.textContent = `${monthName} ${year}`;
+            payslipsDetails.classList.remove('hidden');
+
+            if (payslips.length === 0) {
+                const row = payslipsTableBody.insertRow();
+                row.innerHTML = `<td colspan="8" class="py-3 px-6 text-center text-gray-500">Keine Payslips für diesen Lauf gefunden.</td>`;
+                return;
+            }
+
+            payslips.forEach(payslip => {
+                const row = payslipsTableBody.insertRow();
+                row.innerHTML = `
+                    <td class="py-3 px-6 text-left">${payslip.id}</td>
+                    <td class="py-3 px-6 text-left">${payslip.employeeId}</td>
+                    <td class="py-3 px-6 text-left">${payslip.grossSalary ? parseFloat(payslip.grossSalary).toFixed(2) : '0.00'} €</td>
+                    <td class="py-3 px-6 text-left">${payslip.netSalary ? parseFloat(payslip.netSalary).toFixed(2) : '0.00'} €</td>
+                    <td class="py-3 px-6 text-left">${payslip.taxAmount ? parseFloat(payslip.taxAmount).toFixed(2) : '0.00'} €</td>
+                    <td class="py-3 px-6 text-left">${payslip.socialSecurityAmount ? parseFloat(payslip.socialSecurityAmount).toFixed(2) : '0.00'} €</td>
+                    <td class="py-3 px-6 text-left">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold 
+                            ${payslip.status === 'Calculated' ? 'bg-blue-200 text-blue-800' : ''}
+                            ${payslip.status === 'Generated' ? 'bg-indigo-200 text-indigo-800' : ''} <!-- NEU: Generated Status -->
+                            ${payslip.status === 'Issued' ? 'bg-green-200 text-green-800' : ''}
+                            ${payslip.status === 'Paid' ? 'bg-purple-200 text-purple-800' : ''}
+                            ${payslip.status === 'Cancelled' ? 'bg-red-200 text-red-800' : ''}">
+                            ${payslip.status}
+                        </span>
+                    </td>
+                    <td class="py-3 px-6 text-center whitespace-nowrap">
+                        <button onclick="generatePayslipPdf(${payslip.id})" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-1 px-3 rounded text-xs">PDF</button>
+                        <!-- Weitere Aktionen für einzelne Payslips -->
+                    </td>
+                `;
+            });
+        }
+
+
+        // --- Aktionen für Payroll Runs ---
+        addPayrollRunForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const month = payrollMonthInput.value;
+            const year = payrollYearInput.value;
+            const createdByUserId = createdByUserIdInput.value;
+            const employeeIds = employeeIdsInput.value.split(',').map(id => id.trim()).filter(id => id);
+
+            if (!month || !year || !createdByUserId || employeeIds.length === 0) {
+                alert('Bitte wählen Sie Monat und Jahr aus, geben Sie die Ersteller-ID und mindestens eine Mitarbeiter-ID an.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${PAYROLL_PROXY_BASE_URL}/runs`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        month: parseInt(month),
+                        year: parseInt(year),
+                        createdByUserId: createdByUserId,
+                        employeeIds: employeeIds
+                    })
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert('Nicht autorisiert. Bitte melden Sie sich an.');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP-Fehler! Status: ${response.status}`);
+                }
+
+                alert('Abrechnungslauf erfolgreich erstellt!');
+                addPayrollRunModal.classList.add('hidden');
+                addPayrollRunForm.reset();
+                fetchPayrollRuns();
+            } catch (error) {
+                console.error('Fehler beim Erstellen des Abrechnungslaufs:', error);
+                alert(`Fehler beim Erstellen des Abrechnungslaufs: ${error.message}`);
+            }
+        });
+
+        async function calculateRun(runId) {
+            if (!confirm('Sind Sie sicher, dass Sie diesen Abrechnungslauf berechnen möchten? Vorhandene Payslips werden überschrieben.')) {
+                return;
+            }
+            try {
+                const response = await fetch(`${PAYROLL_PROXY_BASE_URL}/runs/${runId}/calculate`, {
+                    method: 'POST',
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert('Nicht autorisiert. Bitte melden Sie sich an.');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP-Fehler! Status: ${response.status}`);
+                }
+
+                alert('Abrechnungslauf erfolgreich berechnet!');
+                fetchPayrollRuns();
+            } catch (error) {
+                console.error('Fehler beim Berechnen des Abrechnungslaufs:', error);
+                alert(`Fehler beim Berechnen des Abrechnungslaufs: ${error.message}`);
+            }
+        }
+
+        async function approveRun(runId) {
+            if (!confirm('Sind Sie sicher, dass Sie diesen Abrechnungslauf genehmigen möchten?')) {
+                return;
+            }
+            try {
+                const response = await fetch(`${PAYROLL_PROXY_BASE_URL}/runs/${runId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status: 'Approved' })
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert('Nicht autorisiert. Bitte melden Sie sich an.');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP-Fehler! Status: ${response.status}`);
+                }
+
+                alert('Abrechnungslauf erfolgreich genehmigt!');
+                fetchPayrollRuns();
+            } catch (error) {
+                console.error('Fehler beim Genehmigen des Abrechnungslaufs:', error);
+                alert(`Fehler beim Genehmigen des Abrechnungslaufs: ${error.message}`);
+            }
+        }
+
+        async function payRun(runId) {
+            if (!confirm('Sind Sie sicher, dass Sie diesen Abrechnungslauf als "bezahlt" markieren möchten? Dies sollte erst nach erfolgreicher Zahlung erfolgen.')) {
+                return;
+            }
+            try {
+                const response = await fetch(`${PAYROLL_PROXY_BASE_URL}/runs/${runId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status: 'Paid' })
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert('Nicht autorisiert. Bitte melden Sie sich an.');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP-Fehler! Status: ${response.status}`);
+                }
+
+                alert('Abrechnungslauf erfolgreich als "bezahlt" markiert!');
+                fetchPayrollRuns();
+            } catch (error) {
+                console.error('Fehler beim Markieren als "bezahlt":', error);
+                alert(`Fehler beim Markieren als "bezahlt": ${error.message}`);
+            }
+        }
+
+        async function deleteRun(runId) {
+            if (!confirm('Sind Sie sicher, dass Sie diesen Abrechnungslauf und ALLE zugehörigen Payslips löschen möchten? Dies kann NICHT rückgängig gemacht werden.')) {
+                return;
+            }
+            try {
+                const response = await fetch(`${PAYROLL_PROXY_BASE_URL}/runs/${runId}`, {
+                    method: 'DELETE',
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert('Nicht autorisiert. Bitte melden Sie sich an.');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP-Fehler! Status: ${response.status}`);
+                }
+
+                alert('Abrechnungslauf erfolgreich gelöscht!');
+                fetchPayrollRuns();
+                payslipsDetails.classList.add('hidden');
+            } catch (error) {
+                console.error('Fehler beim Löschen des Abrechnungslaufs:', error);
+                alert(`Fehler beim Löschen des Abrechnungslaufs: ${error.message}`);
+            }
+        }
+
+        async function viewPayslips(runId, monthName, year) {
+            currentPayrollRunId = runId;
+            fetchPayslipsForRun(runId, monthName, year);
+        }
+
+        async function generatePayslipPdf(payslipId) {
+            try {
+                const response = await fetch(`${PAYROLL_PROXY_BASE_URL}/payslips/${payslipId}/generate-document`, {
+                    method: 'POST',
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    alert('Nicht autorisiert. Bitte melden Sie sich an.');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP-Fehler! Status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                alert(`PDF-Generierung für Payslip ${payslipId} ausgelöst.`);
+
+                if (result.documentPath) {
+                    window.open(`${PAYROLL_DOCS_PROXY_BASE_URL}${result.documentPath}`, '_blank');
+                } else {
+                    alert('PDF erfolgreich generiert, aber kein Download-Pfad erhalten.');
+                }
+
+            } catch (error) {
+                console.error('Fehler beim Generieren des Payslip-PDF:', error);
+                alert(`Fehler beim Generieren des Payslip-PDF: ${error.message}`);
+            }
+        }
+
+        // Initialer Ladevorgang
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchPayrollRuns();
+        });
+    </script>
+</body>
+</html>

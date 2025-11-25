@@ -191,6 +191,10 @@ const EmployeeTaxSocialSecurity = sequelize.define('EmployeeTaxSocialSecurity', 
         allowNull: false,
         unique: true,
     },
+    healthInsuranceProvider: { // NEUES ATTRIBUT HINZUGEFÜGT
+        type: DataTypes.STRING(255),
+        allowNull: true,
+    },
     taxClass: {
         type: DataTypes.INTEGER,
         allowNull: true,

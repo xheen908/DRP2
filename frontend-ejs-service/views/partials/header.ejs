@@ -16,6 +16,9 @@
             <a href="/admin/users">Mitarbeiter Verwaltung</a>
             <!-- <a href="/admin/hr">HR Management</a> --><!-- ENTFERNT: Link zur HR Management Seite -->
         <% } %>
+        <% if (user && (user.roles.includes('Manager') || user.roles.includes('Admin') || user.roles.includes('Buchhalter'))) { %> <!-- NEU: Rollenprüfung für Payroll Management -->
+            <a href="/admin/payroll-management">Payroll Management</a>
+        <% } %>
         <button onclick="logout()">Abmelden</button>
     </div>
 </header>

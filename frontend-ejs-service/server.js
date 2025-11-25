@@ -95,6 +95,96 @@ const getUserFromHeaders = (req) => {
     return null;
 };
 
+// Funktion zum Abrufen des Authorization Headers aus dem Cookie
+const getAuthHeaderFromCookie = (req) => {
+    const token = req.cookies.jwt;
+    if (token) {
+        return { 'Authorization': `Bearer ${token}` };
+    }
+    return {};
+};
+
+// Allgemeine Proxy-Funktion für API-Anfragen
+async function proxyApiRequest(req, res, method, servicePath) {
+    const { default: fetch } = await importFresh('node-fetch');
+    const authHeaders = getAuthHeaderFromCookie(req);
+
+    if (!authHeaders['Authorization']) {
+        // Nicht autorisiert, wenn kein JWT-Cookie gefunden
+        return res.status(401).json({ message: 'Nicht autorisiert. Kein JWT-Cookie gefunden.' });
+    }
+
+    const targetUrl = `${API_GATEWAY_URL}${servicePath}`;
+    const requestOptions = {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders, // Füge Auth-Header vom Cookie hinzu
+            // Füge auch die x-user- header hinzu, falls der API Gateway sie benötigt
+            'X-User-ID': req.headers['x-user-id'],
+            'X-User-Roles': req.headers['x-user-roles'],
+            'X-User-Username': req.headers['x-user-username'],
+        },
+    };
+
+    if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
+        requestOptions.body = JSON.stringify(req.body);
+    }
+
+    try {
+        const apiResponse = await fetch(targetUrl, requestOptions);
+        // Behandle Fälle, in denen die Antwort kein JSON ist (z.B. bei einem Fehler vom API Gateway)
+        const contentType = apiResponse.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            const data = await apiResponse.json();
+            res.status(apiResponse.status).json(data);
+        } else {
+            const textData = await apiResponse.text();
+            res.status(apiResponse.status).send(textData);
+        }
+    } catch (error) {
+        console.error(`Fehler beim Proxy-Aufruf für ${targetUrl}:`, error);
+        res.status(500).json({ message: 'Interner Serverfehler beim Proxying der Anfrage.' });
+    }
+}
+
+// LOGIN/LOGOUT Routen (vom API Gateway übernommen oder hier direkt implementiert)
+app.post('/login', async (req, res) => {
+    try {
+        const { default: fetch } = await importFresh('node-fetch');
+        const { username, password } = req.body;
+        const response = await fetch(`${API_GATEWAY_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await response.json();
+
+        if (response.ok && data.token) {
+            // Setze den JWT als httpOnly Cookie. Wichtig: Dies muss vom Frontend-EJS-Service kommen.
+            // Der API Gateway sollte dieses Cookie bereits setzen. Dies ist eine Redundanz oder falls
+            // der EJS-Service der einzige ist, der direkt mit dem Auth-Service spricht.
+            res.cookie('jwt', data.token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                maxAge: 3600000 // 1 Stunde
+            });
+            res.redirect('/dashboard');
+        } else {
+            res.render('login', { message: data.message || 'Login fehlgeschlagen', error: true });
+        }
+    } catch (error) {
+        console.error('Login Error:', error);
+        res.render('login', { message: 'Serverfehler beim Login.', error: true });
+    }
+});
+
+app.post('/logout', (req, res) => {
+    res.clearCookie('jwt'); // Löscht den JWT-Cookie
+    res.redirect('/login?message=Sie wurden erfolgreich abgemeldet.');
+});
+
+
 app.get('/', (req, res) => {
     const user = getUserFromHeaders(req);
     if (!user) {
@@ -105,7 +195,8 @@ app.get('/', (req, res) => {
 
 app.get('/login', (req, res) => {
     const message = req.query.message || 'Bitte melden Sie sich an.';
-    res.render('login', { message: message });
+    const error = req.query.error === 'true'; // Fehler-Flag aus Query-Parameter
+    res.render('login', { message: message, error: error });
 });
 
 app.get('/dashboard', (req, res) => {
@@ -155,17 +246,30 @@ app.get('/admin/locations', (req, res) => {
     });
 });
 
-// app.get('/admin/hr', (req, res) => { // <-- ENTFERNT: ROUTE FÜR HR MANAGEMENT
-//     const user = getUserFromHeaders(req);
-//     // Nur Admin und Manager dürfen auf diese Seite zugreifen
-//     if (!user || (!user.roles.includes('Admin') && !user.roles.includes('Manager'))) {
-//         return res.status(403).render('error', { message: 'Keine Berechtigung für diese Seite.' });
-//     }
-//     res.render('admin/hr_management', {
-//         user: user,
-//         API_GATEWAY_URL: API_GATEWAY_URL // API Gateway URL an das Template übergeben
-//     });
-// });
+// NEU: Route für Payroll Management
+app.get('/admin/payroll-management', (req, res) => {
+    const user = getUserFromHeaders(req);
+    if (!user || (!user.roles.includes('Manager') && !user.roles.includes('Admin') && !user.roles.includes('Buchhalter'))) {
+        return res.status(403).render('error', { message: 'Keine Berechtigung für diese Seite.' });
+    }
+    res.render('payroll_management', { 
+        user: user, // <-- HIER WIRD DER 'user' OBJEKT AN DAS TEMPLATE ÜBERGEBEN
+        API_GATEWAY_URL: API_GATEWAY_URL // API Gateway URL an das Template übergeben
+    });
+});
+
+app.get('/admin/hr', (req, res) => { // <-- WIEDER HINZUGEFÜGT: ROUTE FÜR HR MANAGEMENT
+    const user = getUserFromHeaders(req);
+    // Nur Admin und Manager dürfen auf diese Seite zugreifen
+    if (!user || (!user.roles.includes('Admin') && !user.roles.includes('Manager'))) {
+        return res.status(403).render('error', { message: 'Keine Berechtigung für diese Seite.' });
+    }
+    res.render('hr_management', { // render 'hr_management' anstatt 'admin/hr_management'
+        user: user,
+        API_GATEWAY_URL: API_GATEWAY_URL // API Gateway URL an das Template übergeben
+    });
+});
+
 
 app.get('/admin/user-shifts/:userId', async (req, res) => {
     const user = getUserFromHeaders(req);
@@ -215,7 +319,7 @@ app.get('/admin/user-shifts/:userId', async (req, res) => {
 
         if (!shiftsResponse.ok) {
             const errorData = await shiftsResponse.json();
-            console.error('Fehler beim Abrufen der Schichten vom Shift-Service:', errorData);
+            console.error('Fehler beim Abrufen der Schichten vom Shift-service:', errorData);
             return res.status(shiftsResponse.status).render('error', { 
                 message: `Fehler beim Laden der Schichten: ${errorData.message || 'Unbekannter Fehler'}` 
             });
@@ -238,6 +342,45 @@ app.get('/admin/user-shifts/:userId', async (req, res) => {
         res.status(500).render('error', { message: 'Interner Serverfehler beim Laden der Schichtübersicht.' });
     }
 });
+
+// NEUE PROXY-ROUTEN FÜR PAYROLL SERVICE
+// Diese Routen fangen die Client-Anfragen ab und leiten sie an das API Gateway weiter
+app.get('/admin/proxy-payroll/runs', async (req, res) => {
+    await proxyApiRequest(req, res, 'GET', '/api/payroll/runs');
+});
+
+app.get('/admin/proxy-payroll/runs/:id', async (req, res) => {
+    await proxyApiRequest(req, res, 'GET', `/api/payroll/runs/${req.params.id}`);
+});
+
+app.get('/admin/proxy-payroll/payslips/employee/:employeeId', async (req, res) => {
+    await proxyApiRequest(req, res, 'GET', `/api/payroll/payslips/employee/${req.params.employeeId}`);
+});
+
+app.get('/admin/proxy-payroll/payslips/:id', async (req, res) => {
+    await proxyApiRequest(req, res, 'GET', `/api/payroll/payslips/${req.params.id}`);
+});
+
+app.post('/admin/proxy-payroll/runs', async (req, res) => {
+    await proxyApiRequest(req, res, 'POST', '/api/payroll/runs');
+});
+
+app.post('/admin/proxy-payroll/runs/:id/calculate', async (req, res) => {
+    await proxyApiRequest(req, res, 'POST', `/api/payroll/runs/${req.params.id}/calculate`);
+});
+
+app.post('/admin/proxy-payroll/payslips/:id/generate-document', async (req, res) => {
+    await proxyApiRequest(req, res, 'POST', `/api/payroll/payslips/${req.params.id}/generate-document`);
+});
+
+app.put('/admin/proxy-payroll/runs/:id/status', async (req, res) => {
+    await proxyApiRequest(req, res, 'PUT', `/api/payroll/runs/${req.params.id}/status`);
+});
+
+app.delete('/admin/proxy-payroll/runs/:id', async (req, res) => {
+    await proxyApiRequest(req, res, 'DELETE', `/api/payroll/runs/${req.params.id}`);
+});
+
 
 app.get('/error', (req, res) => {
     const message = req.query.message || 'Ein unbekannter Fehler ist aufgetreten.';

@@ -1,8 +1,10 @@
-let PayrollRun;
-let Payslip;
+// DRP2/payroll-service/models/payrollModel.js
 
-const initModels = (sequelize, DataTypes) => {
-    PayrollRun = sequelize.define('PayrollRun', {
+// Diese Funktion definiert die Sequelize-Modelle und ihre Assoziationen.
+// Sie nimmt die sequelize-Instanz und DataTypes als Argumente.
+const defineModels = (sequelize, DataTypes) => {
+    // Definition des PayrollRun Modells
+    const PayrollRun = sequelize.define('PayrollRun', {
         id: {
             type: DataTypes.INTEGER,
             autoIncrement: true,
@@ -14,122 +16,121 @@ const initModels = (sequelize, DataTypes) => {
             validate: {
                 min: 1,
                 max: 12,
-            },
+            }
         },
         year: {
             type: DataTypes.INTEGER,
             allowNull: false,
             validate: {
                 min: 2000, // Beispiel: Mindestjahr
-            },
-        },
-        runDate: {
-            type: DataTypes.DATE,
-            allowNull: false,
-            defaultValue: DataTypes.NOW,
+            }
         },
         status: {
-            type: DataTypes.ENUM('pending', 'calculated', 'approved', 'paid', 'cancelled'),
+            type: DataTypes.ENUM('Pending', 'Calculated', 'Approved', 'Paid', 'Cancelled'),
             allowNull: false,
-            defaultValue: 'pending',
+            defaultValue: 'Pending',
         },
         totalGrossSalary: {
             type: DataTypes.DECIMAL(10, 2),
-            allowNull: true,
+            allowNull: false,
             defaultValue: 0.00,
         },
         totalNetSalary: {
             type: DataTypes.DECIMAL(10, 2),
-            allowNull: true,
+            allowNull: false,
             defaultValue: 0.00,
         },
-        createdByUserId: { // Referenz zum Auth Service User, der den Lauf initiiert hat
-            type: DataTypes.STRING, // Oder UUID, je nach Auth Service User ID Typ
+        calculationDate: {
+            type: DataTypes.DATE,
+            allowNull: true,
+        },
+        approvalDate: {
+            type: DataTypes.DATE,
+            allowNull: true,
+        },
+        paymentDate: {
+            type: DataTypes.DATE,
+            allowNull: true,
+        },
+        createdByUserId: {
+            type: DataTypes.STRING, // UUID oder INT, je nach Auth-Service User ID
             allowNull: false,
+        },
+        lastModifiedDate: {
+            type: DataTypes.DATE,
+            allowNull: true,
         },
     }, {
         tableName: 'payroll_runs',
-        timestamps: true,
+        timestamps: true, // createdAt, updatedAt
+        underscored: true, // Spaltennamen in snake_case
     });
 
-    Payslip = sequelize.define('Payslip', {
+    // Definition des Payslip Modells
+    const Payslip = sequelize.define('Payslip', {
         id: {
             type: DataTypes.INTEGER,
             autoIncrement: true,
             primaryKey: true,
         },
-        employeeId: { // Logische Referenz zur Employee ID im HR Service
+        payrollRunId: {
             type: DataTypes.INTEGER,
+            allowNull: false,
+            references: {
+                model: 'payroll_runs', // Referenziert die Tabelle payroll_runs
+                key: 'id',
+            }
+        },
+        employeeId: {
+            type: DataTypes.STRING, // UUID oder INT, je nach HR-Service Employee ID
             allowNull: false,
         },
         grossSalary: {
             type: DataTypes.DECIMAL(10, 2),
             allowNull: false,
-            defaultValue: 0.00,
         },
         netSalary: {
             type: DataTypes.DECIMAL(10, 2),
             allowNull: false,
-            defaultValue: 0.00,
         },
-        taxAmount: { // Geschätzte Lohnsteuer
+        taxAmount: {
             type: DataTypes.DECIMAL(10, 2),
-            allowNull: true,
-            defaultValue: 0.00,
+            allowNull: false,
         },
-        socialSecurityAmount: { // Geschätzte Sozialabgaben gesamt
+        socialSecurityAmount: {
             type: DataTypes.DECIMAL(10, 2),
-            allowNull: true,
-            defaultValue: 0.00,
+            allowNull: false,
         },
-        healthInsuranceEmployeeShare: { // Krankenversicherung AN-Anteil
+        healthInsuranceAmount: {
             type: DataTypes.DECIMAL(10, 2),
-            allowNull: true,
+            allowNull: false,
             defaultValue: 0.00,
         },
-        nursingInsuranceEmployeeShare: { // Pflegeversicherung AN-Anteil
+        pensionInsuranceAmount: {
             type: DataTypes.DECIMAL(10, 2),
-            allowNull: true,
+            allowNull: false,
             defaultValue: 0.00,
         },
-        pensionInsuranceEmployeeShare: { // Rentenversicherung AN-Anteil
+        unemploymentInsuranceAmount: {
             type: DataTypes.DECIMAL(10, 2),
-            allowNull: true,
+            allowNull: false,
             defaultValue: 0.00,
         },
-        unemploymentInsuranceEmployeeShare: { // Arbeitslosenversicherung AN-Anteil
+        careInsuranceAmount: {
             type: DataTypes.DECIMAL(10, 2),
-            allowNull: true,
+            allowNull: false,
             defaultValue: 0.00,
         },
-        employerSocialSecurityTotal: { // Sozialabgaben AG-Anteil gesamt
-            type: DataTypes.DECIMAL(10, 2),
-            allowNull: true,
-            defaultValue: 0.00,
-        },
-        otherDeductions: { // JSON für sonstige Abzüge (z.B. VWL, Pfändungen)
-            type: DataTypes.JSON,
+        taxClass: {
+            type: DataTypes.STRING, // Lohnsteuerklasse (z.B. I, II, III, IV, V, VI)
             allowNull: true,
         },
-        bonuses: { // JSON für Boni oder Prämien
-            type: DataTypes.JSON,
+        childAllowances: {
+            type: DataTypes.DECIMAL(2, 1), // Kinderfreibeträge
             allowNull: true,
         },
-        allowances: { // JSON für Zulagen (z.B. Fahrtkostenzuschuss)
-            type: DataTypes.JSON,
-            allowNull: true,
-        },
-        taxClass: { // Lohnsteuerklasse
-            type: DataTypes.ENUM('I', 'II', 'III', 'IV', 'IV/IV', 'V', 'VI'),
-            allowNull: true,
-        },
-        childAllowances: { // Kinderfreibeträge
-            type: DataTypes.DECIMAL(3, 1),
-            allowNull: true,
-            defaultValue: 0.0,
-        },
-        maritalStatus: { // Familienstand (aus HR Service zur Info)
-            type: DataTypes.ENUM('Ledig', 'Verheiratet', 'Geschieden', 'Verwitwet', 'Eingetragene Partnerschaft', 'Unbekannt'),
+        maritalStatus: {
+            type: DataTypes.STRING, // Familienstand
             allowNull: true,
         },
         payrollPeriodStart: {
@@ -143,33 +144,28 @@ const initModels = (sequelize, DataTypes) => {
         payslipDate: {
             type: DataTypes.DATEONLY,
             allowNull: false,
-            defaultValue: DataTypes.NOW,
         },
         status: {
-            type: DataTypes.ENUM('generated', 'distributed', 'corrected', 'cancelled'),
+            type: DataTypes.ENUM('Calculated', 'Generated', 'Issued', 'Paid'), // <-- HIER WURDE 'Generated' HINZUGEFÜGT
             allowNull: false,
-            defaultValue: 'generated',
+            defaultValue: 'Calculated',
         },
-        documentPath: { // Pfad zur generierten PDF-Abrechnung
-            type: DataTypes.STRING,
+        documentPath: {
+            type: DataTypes.STRING, // Pfad zum generierten PDF-Dokument
             allowNull: true,
         },
-        // Weitere relevante Felder, z.B. kumulierte Jahreswerte könnten hier eingefügt werden
     }, {
         tableName: 'payslips',
         timestamps: true,
+        underscored: true,
     });
 
-    // Beziehungen definieren
-    PayrollRun.hasMany(Payslip, {
-        foreignKey: 'payrollRunId',
-        onDelete: 'CASCADE',
-    });
-    Payslip.belongsTo(PayrollRun, {
-        foreignKey: 'payrollRunId',
-    });
+    // Assoziationen
+    PayrollRun.hasMany(Payslip, { as: 'payslips', foreignKey: 'payrollRunId' });
+    Payslip.belongsTo(PayrollRun, { as: 'payrollRun', foreignKey: 'payrollRunId' });
 
+    // Rückgabe der definierten Modelle, falls direkt benötigt
     return { PayrollRun, Payslip };
 };
 
-module.exports = { initModels, PayrollRun, Payslip };
+module.exports = defineModels; // Exportiere die Funktion

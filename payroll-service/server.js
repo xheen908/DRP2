@@ -1,8 +1,13 @@
+// DRP2/payroll-service/server.js
 const express = require('express');
 const dotenv = require('dotenv');
 const payrollRoutes = require('./routes/payrollRoutes');
-const { initModels } = require('./models/payrollModel');
+const defineModels = require('./models/payrollModel'); // Importiere die defineModels Funktion
 const sequelize = require('./config/sequelize'); // Importiere die zentrale Sequelize-Instanz
+const { DataTypes } = require('sequelize'); // DataTypes separat importieren
+const payrollController = require('./controllers/payrollController'); // Controller importieren
+const path = require('path'); // NEU HINZUGEFÜGT für Dateipfade
+
 
 dotenv.config();
 
@@ -10,42 +15,50 @@ const app = express();
 app.use(express.json());
 
 // Modelle initialisieren und Beziehungen herstellen
-const { DataTypes } = require('sequelize');
-initModels(sequelize, DataTypes);
+// Rufe die defineModels Funktion auf, um die Modelle zu registrieren.
+// Die Modelle werden dadurch in sequelize.models verfügbar.
+const { PayrollRun, Payslip } = defineModels(sequelize, DataTypes); // Rückgabe der Modelle
+
+// WICHTIG: Übergebe die initialisierten Modelle an den Controller
+payrollController.init(PayrollRun, Payslip);
+
 
 // Authentifizierungs-Middleware (vereinfacht)
-// In einer echten Anwendung würde dies über ein zentrales API Gateway oder
-// eine JWT-Validierung erfolgen, die von einem Auth Service bereitgestellt wird.
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
-    if (token == null) return res.sendStatus(401); // Kein Token
+    if (token == null) {
+        console.warn("[Payroll Service] Authentifizierung: Kein Token gefunden.");
+        return res.sendStatus(401); // Unauthorized
+    }
 
-    // Hier würde eine echte Token-Validierung erfolgen (z.B. mit dem Auth Service)
-    // Für diesen Entwurf gehen wir davon aus, dass ein Token vorhanden ist.
-    // Ein echter Microservice würde das Token an den Auth Service zur Validierung senden.
-    console.log("[Payroll Service] Token vorhanden (Vereinfachte Prüfung)");
-    req.user = { id: 'mockUserId', role: 'Admin' }; // Mock-Benutzer für den Entwurf
+    console.log("[Payroll Service] Token vorhanden (Vereinfachte Prüfung - kein JWT Verify)");
+    req.user = { id: 'mockUserId', role: 'Admin', jwtToken: token }; // Mock-User-Daten
     next();
 };
 
 app.use(authenticateToken);
 
-// Routen
+// Statische Dateien für generierte PDFs servieren
+// Der 'uploads' Ordner wird vom Controller erstellt und befüllt.
+// Dieser Endpunkt macht die PDFs unter /uploads/[dateiname.pdf] zugänglich.
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+
+// Routen für den Payroll Service
 app.use('/api/payroll', payrollRoutes);
 
-// Fehlerbehandlungs-Middleware
+// Globaler Fehler-Handler
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send('Something broke!');
+    console.error(`[Payroll Service] Globaler Fehler: ${err.stack}`);
+    res.status(500).send('Ein interner Serverfehler ist aufgetreten!');
 });
 
-const PORT = process.env.PORT || 3009; // Standard-Port für den Payroll Service
+const PORT = process.env.PORT || 3009;
 
-// Sequelize synchronisieren und Server starten
-sequelize.sync({ alter: true }) // ACHTUNG: alter: true ist für die Entwicklung nützlich,
-                              // aber in Produktion sollte man Migrations-Tools verwenden.
+// Datenbank synchronisieren und Server starten
+sequelize.sync({ alter: true })
     .then(() => {
         app.listen(PORT, () => {
             console.log(`Payroll Service: Erfolgreich mit der MySQL-Datenbank verbunden (Sequelize)!`);

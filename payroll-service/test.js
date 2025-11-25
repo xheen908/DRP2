@@ -1,285 +1,8 @@
-// DRP2/payroll-service/controllers/payrollController.js
+// DRP2/payroll-service/test.js
 
-const fetch = require('node-fetch');
-const sequelize = require('../config/sequelize');
-const { Op } = require('sequelize');
-const puppeteer = require('puppeteer'); // Wird später entfernt
+const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
-const PDFDocument = require('pdfkit'); // Hinzugefügt
-const { raw } = require('express');
-
-
-let PayrollRun;
-let Payslip;
-
-exports.init = (payrollRunModel, payslipModel) => {
-    PayrollRun = payrollRunModel;
-    Payslip = payslipModel;
-    console.log("[Payroll Controller] Sequelize Modelle erfolgreich initialisiert.");
-};
-
-const HR_SERVICE_URL = process.env.HR_SERVICE_URL || 'http://hr-service:3008';
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://auth-service:3001';
-const SHIFT_SERVICE_URL = process.env.SHIFT_SERVICE_URL || 'http://shift-service:3006';
-
-async function fetchWithAuth(url, options, req) {
-    const token = req.user ? req.user.jwtToken : null;
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
-
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(url, { ...options, headers });
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Fehler beim Abrufen von ${url}: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-    return response.json();
-}
-
-/**
- * Vereinfachte deutsche Gehaltsabrechnung.
- * @param {object} employeeData - Daten des Mitarbeiters vom HR-Service (muss employee.salary enthalten)
- * @param {number} actualWorkingHours - Tatsächlich geleistete Arbeitsstunden im Monat
- * @returns {object} Berechnungsergebnisse (grossSalary, netSalary, taxAmount, socialSecurityAmount etc.)
- */
-function calculateGermanPayroll(employeeData, actualWorkingHours) {
-    const annualGrossSalary = parseFloat(employeeData.salary) || 36000;
-
-    let monthlyGrossSalary = annualGrossSalary / 12;
-
-    console.log(`[Payroll Calculation] Employee ${employeeData.id}: Jahresbrutto ${annualGrossSalary}, Monatsbrutto (1/12): ${monthlyGrossSalary.toFixed(2)}€`);
-
-    let taxAmount = 0;
-    let socialSecurityAmount = 0;
-    let netSalary = monthlyGrossSalary;
-
-    const taxRate = 0.20;
-    const socialSecurityRate = 0.19;
-
-    if (monthlyGrossSalary > 0) {
-        taxAmount = monthlyGrossSalary * taxRate;
-        socialSecurityAmount = monthlyGrossSalary * socialSecurityRate;
-        netSalary = monthlyGrossSalary - taxAmount - socialSecurityAmount;
-    }
-
-    return {
-        grossSalary: monthlyGrossSalary,
-        netSalary: netSalary,
-        taxAmount: taxAmount,
-        socialSecurityAmount: socialSecurityAmount,
-        healthInsuranceAmount: monthlyGrossSalary * 0.073,
-        pensionInsuranceAmount: monthlyGrossSalary * 0.093,
-        unemploymentInsuranceAmount: monthlyGrossSalary * 0.012,
-        careInsuranceAmount: monthlyGrossSalary * 0.015,
-    };
-}
-
-
-// --- PayrollRun Controller Funktionen ---
-
-exports.createPayrollRun = async (req, res) => {
-    try {
-        const { month, year, createdByUserId, employeeIds } = req.body;
-        if (!month || !year || !createdByUserId || !employeeIds || !Array.isArray(employeeIds)) {
-            return res.status(400).json({ message: 'Monat, Jahr, Ersteller-ID und Mitarbeiter-IDs sind erforderlich.' });
-        }
-
-        const newPayrollRun = await PayrollRun.create({
-            month,
-            year,
-            status: 'Pending',
-            totalGrossSalary: 0,
-            totalNetSalary: 0,
-            createdByUserId
-        });
-
-        res.status(201).json(newPayrollRun);
-    } catch (error) {
-        console.error('Fehler beim Erstellen des Gehaltsabrechnungslaufs:', error);
-        res.status(500).json({ message: 'Interner Serverfehler beim Erstellen des Gehaltsabrechnungslaufs', error: error.message });
-    }
-};
-
-exports.getAllPayrollRuns = async (req, res) => {
-    try {
-        const payrollRuns = await PayrollRun.findAll({
-            include: [{ model: Payslip, as: 'payslips' }]
-        });
-        res.status(200).json(payrollRuns);
-    } catch (error) {
-        console.error('Fehler beim Abrufen aller Gehaltsabrechnungsläufe:', error.message);
-        res.status(500).json({ message: 'Interner Serverfehler beim Abrufen der Gehaltsabrechnungsläufe', error: error.message });
-    }
-};
-
-exports.getPayrollRunById = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const payrollRun = await PayrollRun.findByPk(id, {
-            include: [{ model: Payslip, as: 'payslips' }]
-        });
-
-        if (!payrollRun) {
-            return res.status(404).json({ message: 'Gehaltsabrechnungslauf nicht gefunden.' });
-        }
-        res.status(200).json(payrollRun);
-    } catch (error) {
-        console.error('Fehler beim Abrufen des Gehaltsabrechnungslaufs:', error.message);
-        res.status(500).json({ message: 'Interner Serverfehler beim Abrufen des Gehaltsabrechnungslaufs', error: error.message });
-    }
-};
-
-exports.calculatePayrollRun = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const payrollRun = await PayrollRun.findByPk(id);
-
-        if (!payrollRun) {
-            return res.status(404).json({ message: 'Gehaltsabrechnungslauf nicht gefunden.' });
-        }
-        if (payrollRun.status !== 'Pending') {
-            return res.status(400).json({ message: 'Gehaltsabrechnungslauf kann nur im Status "Pending" berechnet werden.' });
-        }
-
-        const allEmployees = await fetchWithAuth(`${HR_SERVICE_URL}/api/hr/employees`, { method: 'GET' }, req);
-        const employeesToProcess = allEmployees;
-
-        if (!employeesToProcess || employeesToProcess.length === 0) {
-            return res.status(404).json({ message: 'Keine Mitarbeiterdaten zum Berechnen gefunden.' });
-        }
-
-        let totalGross = 0;
-        let totalNet = 0;
-        const payslipsToCreate = [];
-
-        for (const employee of employeesToProcess) {
-            const actualWorkingHours = 160;
-
-            const calculationResult = calculateGermanPayroll(employee, actualWorkingHours);
-
-            payslipsToCreate.push({
-                payrollRunId: payrollRun.id,
-                employeeId: employee.id,
-                grossSalary: calculationResult.grossSalary,
-                netSalary: calculationResult.netSalary,
-                taxAmount: calculationResult.taxAmount,
-                socialSecurityAmount: calculationResult.socialSecurityAmount,
-                healthInsuranceAmount: calculationResult.healthInsuranceAmount,
-                pensionInsuranceAmount: calculationResult.pensionInsuranceAmount,
-                unemploymentInsuranceAmount: calculationResult.unemploymentInsuranceAmount,
-                careInsuranceAmount: calculationResult.careInsuranceAmount,
-                taxClass: employee.taxClass || 'I',
-                childAllowances: employee.childAllowances || 0,
-                maritalStatus: employee.maritalStatus || 'Single',
-                payrollPeriodStart: new Date(payrollRun.year, payrollRun.month - 1, 1),
-                payrollPeriodEnd: new Date(payrollRun.year, payrollRun.month, 0),
-                payslipDate: new Date(),
-                status: 'Calculated',
-                documentPath: null
-            });
-
-            totalGross += calculationResult.grossSalary;
-            totalNet += calculationResult.netSalary;
-        }
-
-        await Payslip.destroy({ where: { payrollRunId: payrollRun.id } });
-        await Payslip.bulkCreate(payslipsToCreate);
-
-        await payrollRun.update({
-            status: 'Calculated',
-            totalGrossSalary: totalGross,
-            totalNetSalary: totalNet,
-            calculationDate: new Date()
-        });
-
-        res.status(200).json({ message: 'Gehaltsabrechnung erfolgreich berechnet.', payrollRun });
-    } catch (error) {
-        console.error('Fehler beim Berechnen des Gehaltsabrechnungslaufs:', error.message);
-        res.status(500).json({ message: 'Interner Serverfehler beim Berechnen des Gehaltsabrechnungslaufs', error: error.message });
-    }
-};
-
-exports.updatePayrollRunStatus = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
-
-        if (!['Pending', 'Calculated', 'Approved', 'Paid', 'Cancelled'].includes(status)) {
-            return res.status(400).json({ message: 'Ungültiger Status.' });
-        }
-
-        const payrollRun = await PayrollRun.findByPk(id);
-
-        if (!payrollRun) {
-            return res.status(404).json({ message: 'Gehaltsabrechnungslauf nicht gefunden.' });
-        }
-
-        await payrollRun.update({ status, lastModifiedDate: new Date() });
-        res.status(200).json({ message: `Status des Gehaltsabrechnungslaufs auf '${status}' aktualisiert.`, payrollRun });
-    } catch (error) {
-        console.error('Fehler beim Aktualisieren des Gehaltsabrechnungslauf-Status:', error.message);
-        res.status(500).json({ message: 'Interner Serverfehler beim Aktualisieren des Status', error: error.message });
-    }
-};
-
-exports.deletePayrollRun = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const payrollRun = await PayrollRun.findByPk(id);
-
-        if (!payrollRun) {
-            return res.status(404).json({ message: 'Gehaltsabrechnungslauf nicht gefunden.' });
-        }
-
-        await Payslip.destroy({ where: { payrollRunId: id } });
-        await payrollRun.destroy();
-
-        res.status(204).send();
-    } catch (error) {
-        console.error('Fehler beim Löschen des Gehaltsabrechnungslaufs:', error.message);
-        res.status(500).json({ message: 'Interner Serverfehler beim Löschen des Gehaltsabrechnungslaufs', error: error.message });
-    }
-};
-
-// --- Payslip Controller Funktionen ---
-
-exports.getEmployeePayslips = async (req, res) => {
-    try {
-        const { employeeId } = req.params;
-        const payslips = await Payslip.findAll({
-            where: { employeeId },
-            include: [{ model: PayrollRun, as: 'payrollRun' }],
-            order: [['payslipDate', 'DESC']]
-        });
-        res.status(200).json(payslips);
-    } catch (error) {
-        console.error('Fehler beim Abrufen der Gehaltsabrechnungen des Mitarbeiters:', error.message);
-        res.status(500).json({ message: 'Interner Serverfehler beim Abrufen der Gehaltsabrechnungen', error: error.message });
-    }
-};
-
-exports.getSinglePayslip = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const payslip = await Payslip.findByPk(id, {
-            include: [{ model: PayrollRun, as: 'payrollRun' }]
-        });
-
-        if (!payslip) {
-            return res.status(404).json({ message: 'Gehaltsabrechnung nicht gefunden.' });
-        }
-        res.status(200).json(payslip);
-    } catch (error) {
-        console.error('Fehler beim Abrufen der einzelnen Gehaltsabrechnung:', error.message);
-        res.status(500).json({ message: 'Interner Serverfehler beim Abrufen der Gehaltsabrechnung', error: error.message });
-    }
-};
 
 // --- KONSTANTEN FÜR LAYOUT ---
 const MARGIN_LEFT = 25;
@@ -301,8 +24,8 @@ const BRUTTO_COLS = [
     { label: 'Betrag', x: MARGIN_LEFT + 325, width: 70, align: 'right' }
 ];
 
-async function generateGermanPayslipPDF(payslipData, outputPath, req) {
-    return new Promise(async (resolve, reject) => {
+async function generateGermanPayslipPDF(payslipData, outputPath) {
+    return new Promise((resolve, reject) => {
         const doc = new PDFDocument({
             size: 'A4',
             margins: { top: 25, bottom: 20, left: MARGIN_LEFT, right: MARGIN_RIGHT },
@@ -363,7 +86,6 @@ async function generateGermanPayslipPDF(payslipData, outputPath, req) {
             addText(data.personalNr, MARGIN_LEFT + 65, textY);
             addText(data.svNumber, MARGIN_LEFT + 65, textY + ROW_HEIGHT);
             addText(data.krankenkasse, MARGIN_LEFT + 65, textY + ROW_HEIGHT * 2);
-            // ... (bestehender Code für die rechte Box im Header) ...
 
             // Rechte Box (Kennzahlen)
             let rightBoxTextX = blockX2 + 4;
@@ -711,129 +433,69 @@ async function generateGermanPayslipPDF(payslipData, outputPath, req) {
     });
 }
 
-exports.generatePayslipDocument = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const payslip = await Payslip.findByPk(id, {
-            include: [{ model: PayrollRun, as: 'payrollRun' }]
-        });
-
-        if (!payslip) {
-            return res.status(404).json({ message: 'Gehaltsabrechnung nicht gefunden.' });
-        }
-
-        const employeeId = payslip.employeeId;
-        const payrollRunMonth = payslip.payrollRun.month;
-        const payrollRunYear = payslip.payrollRun.year;
-
-        // Abrufen der Mitarbeiterdaten vom HR-Service
-        // Da die Logs zeigen, dass /api/hr/employees/user/:userId die vollständigen Daten liefert,
-        // ändern wir den Aufruf, um sicherzustellen, dass wir den "userId" des Mitarbeiters verwenden,
-        // der in der Paylsip-Tabelle als employeeId gespeichert ist.
-        // Annahme: payslip.employeeId ist die HR-interne Employee ID,
-        // und employeeDetails.userId ist die Auth-Service-ID.
-        // Wenn der HR-Service einen Endpunkt für die interne Employee ID hat (was der Fall zu sein scheint),
-        // bleiben wir bei der direkten Abfrage mit employeeId.
-        const employeeDetails = await fetchWithAuth(`${HR_SERVICE_URL}/api/hr/employees/${employeeId}`, { method: 'GET' }, req);
-        
-        // Wert für abzugJobticket vorab definieren
-        // Dies sollte aus den tatsächlichen Daten des HR-Service oder der Lohnabrechnung kommen
-        const abzugJobticketValue = '-20,00'; 
-
-        // Primäre Adresse finden (falls vorhanden)
-        const primaryAddress = employeeDetails.addresses?.find(addr => addr.isPrimary) || employeeDetails.addresses?.[0] || {};
-        
-        // --- Zusammenstellung der Daten für pdfkit mit Daten aus HR Service ---
-        const payslipDataForPdfkit = {
-            // Basisdaten des Mitarbeiters
-            personalNr: employeeDetails.employeeNumber || employeeDetails.id?.toString() || 'N/A', 
-            svNumber: employeeDetails.taxSocialSecurity?.socialSecurityNumber || 'N/A', 
-            krankenkasse: employeeDetails.taxSocialSecurity?.healthInsuranceProvider || 'N/A', // KORRIGIERT: Zugriff über taxSocialSecurity (camelCase)
-            eintrittsdatum: employeeDetails.dateOfHire ? new Date(employeeDetails.dateOfHire).toLocaleDateString('de-DE') : 'N/A', 
-            
-            month: new Date(payslip.payrollPeriodStart).toLocaleDateString('de-DE', { month: 'long' }),
-            year: payslip.payrollRun.year.toString(),
-            date: new Date(payslip.payslipDate).toLocaleDateString('de-DE'),
-            page: '1', 
-            
-            employerName: 'DRP2 GmbH, Musterstraße 42, 12345 Musterstadt', 
-            
-            // Mitarbeitername und Adresse aus primärer Adresse
-            employeeName: `${employeeDetails.firstName || ''} ${employeeDetails.lastName || ''}`.trim() || 'N/A',
-            employeeAddressStreetHouseNo: `${primaryAddress.street || ''} ${primaryAddress.houseNumber || ''}`.trim() || 'N/A', 
-            employeeAddressLine2: `${primaryAddress.zipCode || ''} ${primaryAddress.city || ''}`.trim() || 'N/A', 
-            
-            // Brutto-Bezüge
-            bruttoBezug: [
-                { lohnart: '2000', bezeichnung: 'Gehalt', stKZ: payslip.taxClass || (employeeDetails.taxSocialSecurity?.taxClass?.toString() || 'L'), svKZ: 'L', gbKZ: 'J', betrag: parseFloat(payslip.grossSalary).toFixed(2).replace('.', ',') },
-                { lohnart: '3000', bezeichnung: 'Sachbezug Jobticket', stKZ: 'F', svKZ: 'L', gbKZ: 'J', betrag: abzugJobticketValue.replace('-', '') }, 
-            ].filter(item => parseFloat(item.betrag.replace(',', '.')) > 0),
-            gesamtBrutto: parseFloat(payslip.grossSalary).toFixed(2).replace('.', ','),
-            
-            // Steuer- und Sozialversicherungsdaten
-            steuerBrutto: parseFloat(payslip.grossSalary).toFixed(2).replace('.', ','),
-            lohnsteuer: parseFloat(payslip.taxAmount).toFixed(2).replace('.', ','),
-            kirchensteuer: employeeDetails.taxSocialSecurity?.churchTaxApplicable ? 'Ja' : 'Nein', // Beispielhafte Logik, muss präziser sein
-            soliZuschlag: '0,00', 
-            steuerrechtlicheAbzuege: (parseFloat(payslip.taxAmount) + (employeeDetails.taxSocialSecurity?.churchTaxApplicable ? 0 : 0) + 0).toFixed(2).replace('.', ','), 
-            
-            kvBrutto: parseFloat(payslip.grossSalary).toFixed(2).replace('.', ','),
-            rvBrutto: parseFloat(payslip.grossSalary).toFixed(2).replace('.', ','),
-            avBrutto: parseFloat(payslip.grossSalary).toFixed(2).replace('.', ','),
-            pvBrutto: parseFloat(payslip.grossSalary).toFixed(2).replace('.', ','),
-            kvBeitrag: parseFloat(payslip.healthInsuranceAmount).toFixed(2).replace('.', ','),
-            rvBeitrag: parseFloat(payslip.pensionInsuranceAmount).toFixed(2).replace('.', ','),
-            avBeitrag: parseFloat(payslip.unemploymentInsuranceAmount).toFixed(2).replace('.', ','),
-            pvBeitrag: parseFloat(payslip.careInsuranceAmount).toFixed(2).replace('.', ','),
-            svRechtlicheAbzuege: (parseFloat(payslip.healthInsuranceAmount) + parseFloat(payslip.pensionInsuranceAmount) + parseFloat(payslip.unemploymentInsuranceAmount) + parseFloat(payslip.careInsuranceAmount)).toFixed(2).replace('.', ','),
-            
-            // Jahreswerte (Platzhalter, müssen akkumuliert werden)
-            lohnsteuerBescheinigung: (parseFloat(payslip.taxAmount) * 12).toFixed(2).replace('.', ','), 
-            kirchensteuerBescheinigung: '0,00', 
-            soliZuschlagBescheinigung: '0,00', 
-            pauschalVerstZukl: '0,00', 
-            
-            // Netto-Bezüge/-Abzüge
-            nettoBezugLohnart: '3100', 
-            nettoBezugBezeichnung: 'Abzug Geldw. Vorteil Jobticket', 
-            abzugJobticket: abzugJobticketValue, 
-            
-            nettoVerdienst: parseFloat(payslip.netSalary).toFixed(2).replace('.', ','),
-            auszahlungsbetrag: (parseFloat(payslip.netSalary) + parseFloat(abzugJobticketValue.replace(',', '.'))).toFixed(2).replace('.', ','), 
-            
-            // Bankdaten
-            bank: employeeDetails.bankDetails?.bankName || 'N/A', // Verschachtelt
-            konto: employeeDetails.bankDetails?.iban || 'N/A', // Verschachtelt
-            
-            payrollPeriodStart: new Date(payslip.payrollPeriodStart).toLocaleDateString('de-DE'),
-            payrollPeriodEnd: new Date(payslip.payrollPeriodEnd).toLocaleDateString('de-DE'),
-            
-            // Fußzeilenwerte (Platzhalter)
-            svAgAnteil: '743,44', 
-            zusAgKosten: '14,00', 
-            gesamtkosten: parseFloat(payslip.grossSalary).toFixed(2).replace('.', ','),
-        };
-
-        const uploadDir = path.join(__dirname, '..', 'uploads');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        const filename = `gehaltsabrechnung_${payslip.id}_${payrollRunYear}_${String(payrollRunMonth).padStart(2, '0')}.pdf`;
-        const filePath = path.join(uploadDir, filename);
-        const publicDocumentPath = `/uploads/${filename}`;
-
-        // PDF generieren mit pdfkit
-        await generateGermanPayslipPDF(payslipDataForPdfkit, filePath, req);
-
-        await payslip.update({ documentPath: publicDocumentPath, status: 'Generated' });
-
-        res.status(200).json({
-            message: 'Gehaltsabrechnungsdokument erfolgreich generiert.',
-            documentPath: publicDocumentPath,
-            payslip
-        });
-    } catch (error) {
-        console.error('Fehler beim Generieren des Gehaltsabrechnungsdokuments:', error.message);
-        res.status(500).json({ message: 'Interner Serverfehler beim Generieren des Dokuments', error: error.message });
-    }
+// Beispiel-Daten (ANGEPASST)
+const testPayslipData = {
+    personalNr: '0000',
+    svNumber: '123456789',
+    krankenkasse: 'AOK Musterkasse',
+    eintrittsdatum: '01.08.2019',
+    month: 'November',
+    year: '2019',
+    date: '21.11.2019',
+    page: '1',
+    // --- NEUE STRUKTUR DER ADRESSDATEN ---
+    employerName: 'DRP2 GmbH, Musterstraße 42, 12345 Musterstadt', // Bleibt als eine Zeile (Wunsch)
+    employeeName: 'Max Mustermann',
+    employeeAddressStreetHouseNo: 'Musterstraße 1', // Neu: Nur Straße und Hausnummer
+    employeeAddressLine2: '09876 Musterstadt', // Postleitzahl und Ort
+    // ------------------------------------
+    
+    bruttoBezug: [
+        { lohnart: '3000', bezeichnung: 'Sachbezug Jobticket', stKZ: 'F', svKZ: 'L', gbKZ: 'J', betrag: '20,00' },
+        { lohnart: '2000', bezeichnung: 'Gehalt', stKZ: 'L', svKZ: 'L', gbKZ: 'J', betrag: '3.700,00' },
+    ],
+    gesamtBrutto: '3.720,00',
+    
+    steuerBrutto: '3.700,00',
+    lohnsteuer: '601,00',
+    kirchensteuer: '48,10',
+    soliZuschlag: '33,06',
+    steuerrechtlicheAbzuege: '682,16', 
+    
+    kvBrutto: '3.700,00',
+    rvBrutto: '3.700,00',
+    avBrutto: '3.700,00',
+    pvBrutto: '3.700,00',
+    kvBeitrag: '292,02',
+    rvBeitrag: '345,96',
+    avBeitrag: '46,50',
+    pvBeitrag: '66,03',
+    svRechtlicheAbzuege: '750,51', 
+    
+    lohnsteuerBescheinigung: '1.168,08',
+    kirchensteuerBescheinigung: '1.383,84', 
+    soliZuschlagBescheinigung: '264,12', 
+    pauschalVerstZukl: '80,00', 
+    
+    nettoBezugLohnart: '3100',
+    nettoBezugBezeichnung: 'Abzug Geldw. Vorteil Jobticket',
+    abzugJobticket: '-20,00',
+    
+    nettoVerdienst: '2.287,33',
+    auszahlungsbetrag: '2.267,33',
+    
+    bank: 'Beispielbank',
+    konto: 'DE00-0000-0000-0000-0000-00',
+    
+    payrollPeriodStart: '01.11.2019',
+    payrollPeriodEnd: '30.11.2019',
+    svAgAnteil: '743,44',
+    zusAgKosten: '14,00',
+    gesamtkosten: '3.720,00',
 };
+
+const outputFilePath = path.join(__dirname, 'test_deutsche_lohnabrechnung_v4_address_fix.pdf');
+
+generateGermanPayslipPDF(testPayslipData, outputFilePath)
+    .then(() => console.log(`Test-PDF (pdfkit) erfolgreich generiert: ${outputFilePath}`))
+    .catch(error => console.error('Fehler beim Generieren des Test-PDF (pdfkit):', error));
