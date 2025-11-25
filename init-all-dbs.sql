@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Initialdaten für users
 INSERT IGNORE INTO users (id, role_id, full_name, pin, password, external_auth_id, is_active, createdAt, updatedAt) VALUES
-  (1006, 2, 'Sarah Manager', '3333333333', '$2b$10$s4lugBs5pd5PcbaXH30hHegTXkwUF/ADLzb/7VoNWN2Lpq61QCYdK', NULL, 1, '2025-11-12 01:12:27', '2025-11-12 01:12:27'),
+  (1006, 2, 'Sarah Manager', '333333', '$2b$10$s4lugBs5pd5PcbaXH30hHegTXkwUF/ADLzb/7VoNWN2Lpq61QCYdK', NULL, 1, '2025-11-12 01:12:27', '2025-11-18 18:10:39'),
   (1009, 3, 'Dieter Disponent', '8467631315', '$2b$10$yun.AK/r4YHgEuAaM/vXaOxZDKhY1KWTDWbkU.tBsOp5SXMxw92sy', NULL, 1, '2025-11-12 01:13:55', '2025-11-12 01:13:55'),
   (1015, 4, 'Ronny Weber', '3157769787', '$2b$10$fhTPAIZQ0sgGmWi/ZCV0ZOus9tcAkIkVrZIvY4OyHJkEHdMR75lMy', NULL, 1, '2025-11-12 23:56:30', '2025-11-12 23:56:30');
 
