@@ -3,7 +3,8 @@
 // Importiere alle Unterprogramme
 const MPARA = require('./MPARA');
 const MRE4JL = require('./MRE4JL');
-const MRE4 = require('./MRE4'); // MRE4 hinzugefügt
+const MRE4 = require('./MRE4');
+const MRE4ABZ = require('./MRE4ABZ'); // MRE4ABZ hinzugefügt
 
 /**
  * Verwaltet den Zustand (interne Felder und Eingabeparameter) für die Lohnsteuerberechnung
@@ -14,7 +15,7 @@ class TaxCalculator2025 {
         // Initialisiere alle internen Felder gemäß PAP, Abschnitt 4.
         // Die Namen der Felder entsprechen exakt den Bezeichnungen im PAP.
         this.ALTE = 0; // Dieser Wert wird von MRE4ALTE gesetzt
-        this.ANP = 0;
+        this.ANP = 0; // Dieser Wert wird von MRE4ABZ gesetzt
         this.ANTEIL1 = 0;
         this.BBGKVPV = 0;
         this.BBGRV = 0;
@@ -49,7 +50,7 @@ class TaxCalculator2025 {
         this.PVSATZAN = 0;
         this.RVSATZAN = 0;
         this.RW = 0;
-        this.SAP = 0;
+        this.SAP = 0; // Dieser Wert wird von MRE4ABZ gesetzt
         this.SOLZFREI = 0;
         this.SOLZJ = 0;
         this.SOLZMIN = 0;
@@ -79,11 +80,11 @@ class TaxCalculator2025 {
         this.W3STKL5 = 0;
         this.X = 0;
         this.Y = 0;
-        this.ZRE4 = 0;
+        this.ZRE4 = 0; // Dieser Wert wird von MRE4ABZ gesetzt
         this.ZRE4J = 0;
-        this.ZRE4VP = 0;
+        this.ZRE4VP = 0; // Dieser Wert wird von MRE4ABZ gesetzt
         this.ZTABFB = 0;
-        this.ZVBEZ = 0;
+        this.ZVBEZ = 0; // Dieser Wert wird von MRE4ABZ gesetzt
         this.ZVBEZJ = 0;
         this.ZVE = 0;
         this.ZX = 0;
@@ -145,8 +146,8 @@ class TaxCalculator2025 {
         // Hauptsteuerung des Programmablaufplans (Seite 13 des Dokuments)
         MPARA(this, this.input);
         MRE4JL(this, this.input);
-        MRE4(this, this.input); // MRE4 wird aufgerufen
-        // MRE4ABZ(this, this.input);
+        MRE4(this, this.input);
+        MRE4ABZ(this, this.input); // MRE4ABZ wird aufgerufen
         // MBERECH(this, this.input);
         // MSONST(this, this.input);
 
