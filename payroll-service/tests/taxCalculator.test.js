@@ -18,7 +18,7 @@ describe('MPARA Module', () => {
             PVS: 0,   // Keine Besonderheiten in Sachsen
             PVZ: 1,   // Zuschlag für Kinderlose zu zahlen
             PVA: 0,    // Keine Beitragsabschläge für Kinder
-            // Hinzugefügt für MRE4JL, MRE4, MRE4ALTE, MRE4ABZ, MBERECH da calculate() alle Module aufruft.
+            // Hinzugefügt für MRE4JL, MRE4, MRE4ALTE, MRE4ABZ, MBERECH, MSONST da calculate() alle Module aufruft.
             LZZ: 1,
             RE4: 0,
             VBEZ: 0,
@@ -36,6 +36,8 @@ describe('MPARA Module', () => {
             SACHBEZUG: 0, // Für MRE4ABZ
             STKL: 1, // Für MBERECH
             KFB: 0, // Für MBERECH
+            RE4SO: 0, // Für MSONST
+            LZZSO: 0, // Für MSONST
         };
 
         calculator.calculate(input); // Ruft MPARA intern auf
@@ -68,14 +70,14 @@ describe('MPARA Module', () => {
             PVS: 0,
             PVZ: 0,
             PVA: 0,
-            // Hinzugefügt für MRE4JL, MRE4, MRE4ALTE, MRE4ABZ, MBERECH
+            // Hinzugefügt für MRE4JL, MRE4, MRE4ALTE, MRE4ABZ, MBERECH, MSONST
             LZZ: 1, RE4: 0, VBEZ: 0, LZZFREIB: 0, LZZHINZU: 0, AF: 0,
             VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
-
         expect(calculator.BBGRV).toBe(0);
         expect(calculator.RVSATZAN).toBe(0);
     });
@@ -88,14 +90,14 @@ describe('MPARA Module', () => {
             PVS: 1, // Besonderheiten in Sachsen
             PVZ: 0,
             PVA: 0,
-            // Hinzugefügt für MRE4JL, MRE4, MRE4ALTE, MRE4ABZ, MBERECH
+            // Hinzugefügt für MRE4JL, MRE4, MRE4ALTE, MRE4ABZ, MBERECH, MSONST
             LZZ: 1, RE4: 0, VBEZ: 0, LZZFREIB: 0, LZZHINZU: 0, AF: 0,
             VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
-
         expect(calculator.PVSATZAN).toBeCloseTo(CONSTANTS.PVSATZ_AN_SACHSEN_2025); // 0.018
         expect(calculator.PVSATZAG).toBeCloseTo(CONSTANTS.PVSATZ_AG_SACHSEN_2025); // 0.018
     });
@@ -108,14 +110,14 @@ describe('MPARA Module', () => {
             PVS: 0,
             PVZ: 1, // Kinderlos, um den Basissatz zu haben vor Abzügen
             PVA: 2, // 2 Beitragsabschläge
-            // Hinzugefügt für MRE4JL, MRE4, MRE4ALTE, MRE4ABZ, MBERECH
+            // Hinzugefügt für MRE4JL, MRE4, MRE4ALTE, MRE4ABZ, MBERECH, MSONST
             LZZ: 1, RE4: 0, VBEZ: 0, LZZFREIB: 0, LZZHINZU: 0, AF: 0,
             VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
-
         // Erwarteter PVSATZAN: 0.023 (normal) + 0.006 (kinderlos) - (2 * 0.0025) = 0.029 - 0.005 = 0.024
         expect(calculator.PVSATZAN).toBeCloseTo(0.024);
     });
@@ -128,14 +130,14 @@ describe('MPARA Module', () => {
             PVS: 0,
             PVZ: 0, // Nicht kinderlos, um den niedrigsten Startwert zu haben
             PVA: 10, // Unrealistisch hoher Wert, um Negativtest zu erzwingen
-            // Hinzugefügt für MRE4JL, MRE4, MRE4ALTE, MRE4ABZ, MBERECH
+            // Hinzugefügt für MRE4JL, MRE4, MRE4ALTE, MRE4ABZ, MBERECH, MSONST
             LZZ: 1, RE4: 0, VBEZ: 0, LZZFREIB: 0, LZZHINZU: 0, AF: 0,
             VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
-
         // 0.023 (normal) - (10 * 0.0025) = 0.023 - 0.025 = -0.002. Sollte auf 0 gesetzt werden.
         expect(calculator.PVSATZAN).toBe(0);
     });
@@ -157,10 +159,11 @@ describe('MRE4JL Module', () => {
             LZZFREIB: 50000, // 500.00 Cent
             LZZHINZU: 10000, // 100.00 Cent
             AF: 0,           // Kein Faktorverfahren
-            // Hinzugefügt für MPARA, MRE4, MRE4ALTE, MRE4ABZ, MBERECH
+            // Hinzugefügt für MPARA, MRE4, MRE4ALTE, MRE4ABZ, MBERECH, MSONST
             KRV: 0, KVZ: 0, PVS: 0, PVZ: 0, PVA: 0,
             VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input); 
@@ -182,10 +185,11 @@ describe('MRE4JL Module', () => {
             LZZFREIB: 5000,  // 50.00 Cent pro Monat
             LZZHINZU: 1000,  // 10.00 Cent pro Monat
             AF: 0,
-            // Hinzugefügt für MPARA, MRE4, MRE4ALTE, MRE4ABZ, MBERECH
+            // Hinzugefügt für MPARA, MRE4, MRE4ALTE, MRE4ABZ, MBERECH, MSONST
             KRV: 0, KVZ: 0, PVS: 0, PVZ: 0, PVA: 0,
             VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
@@ -207,10 +211,11 @@ describe('MRE4JL Module', () => {
             LZZFREIB: 1250,   // 12.50 Cent pro Woche
             LZZHINZU: 250,    // 2.50 Cent pro Woche
             AF: 0,
-            // Hinzugefügt für MPARA, MRE4, MRE4ALTE, MRE4ABZ, MBERECH
+            // Hinzugefügt für MPARA, MRE4, MRE4ALTE, MRE4ABZ, MBERECH, MSONST
             KRV: 0, KVZ: 0, PVS: 0, PVZ: 0, PVA: 0,
             VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
@@ -233,10 +238,11 @@ describe('MRE4JL Module', () => {
             LZZFREIB: 250,    // 2.50 Cent pro Tag
             LZZHINZU: 50,     // 0.50 Cent pro Tag
             AF: 0,
-            // Hinzugefügt für MPARA, MRE4, MRE4ALTE, MRE4ABZ, MBERECH
+            // Hinzugefügt für MPARA, MRE4, MRE4ALTE, MRE4ABZ, MBERECH, MSONST
             KRV: 0, KVZ: 0, PVS: 0, PVZ: 0, PVA: 0,
             VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
@@ -259,10 +265,11 @@ describe('MRE4JL Module', () => {
             LZZHINZU: 1000,
             AF: 1,    // Faktorverfahren angewendet
             F: 0.950, // Beispiel-Faktor
-            // Hinzugefügt für MPARA, MRE4, MRE4ALTE, MRE4ABZ, MBERECH
+            // Hinzugefügt für MPARA, MRE4, MRE4ALTE, MRE4ABZ, MBERECH, MSONST
             KRV: 0, KVZ: 0, PVS: 0, PVZ: 0, PVA: 0,
             VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
@@ -278,10 +285,11 @@ describe('MRE4JL Module', () => {
             LZZFREIB: 5000,
             LZZHINZU: 1000,
             AF: 0, // Kein Faktorverfahren
-            // Hinzugefügt für MPARA, MRE4, MRE4ALTE, MRE4ABZ, MBERECH
+            // Hinzugefügt für MPARA, MRE4, MRE4ALTE, MRE4ABZ, MBERECH, MSONST
             KRV: 0, KVZ: 0, PVS: 0, PVZ: 0, PVA: 0,
             VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
@@ -313,9 +321,10 @@ describe('MRE4 and MRE4ALTE Module', () => {
             LZZFREIB: 0,
             LZZHINZU: 0,
             AF: 0,
-            // Hinzugefügt für MPARA, MRE4ABZ, MBERECH
+            // Hinzugefügt für MPARA, MRE4ABZ, MBERECH, MSONST
             KRV: 0, KVZ: 0, PVS: 0, PVZ: 0, PVA: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
@@ -358,9 +367,10 @@ describe('MRE4 and MRE4ALTE Module', () => {
             LZZFREIB: 0,
             LZZHINZU: 0,
             AF: 0,
-            // Hinzugefügt für MPARA, MRE4ABZ, MBERECH
+            // Hinzugefügt für MPARA, MRE4ABZ, MBERECH, MSONST
             KRV: 0, KVZ: 0, PVS: 0, PVZ: 0, PVA: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
@@ -397,9 +407,10 @@ describe('MRE4 and MRE4ALTE Module', () => {
             LZZFREIB: 0,
             LZZHINZU: 0,
             AF: 0,
-            // Hinzugefügt für MPARA, MRE4ABZ, MBERECH
+            // Hinzugefügt für MPARA, MRE4ABZ, MBERECH, MSONST
             KRV: 0, KVZ: 0, PVS: 0, PVZ: 0, PVA: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
@@ -435,9 +446,10 @@ describe('MRE4 and MRE4ALTE Module', () => {
             LZZFREIB: 0,
             LZZHINZU: 0,
             AF: 0,
-            // Hinzugefügt für MPARA, MRE4ABZ, MBERECH
+            // Hinzugefügt für MPARA, MRE4ABZ, MBERECH, MSONST
             KRV: 0, KVZ: 0, PVS: 0, PVZ: 0, PVA: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
@@ -465,9 +477,10 @@ describe('MRE4 and MRE4ALTE Module', () => {
             LZZFREIB: 0,
             LZZHINZU: 0,
             AF: 0,
-            // Hinzugefügt für MPARA, MRE4ABZ, MBERECH
+            // Hinzugefügt für MPARA, MRE4ABZ, MBERECH, MSONST
             KRV: 0, KVZ: 0, PVS: 0, PVZ: 0, PVA: 0,
             RE4J: 0, SACHBEZUG: 0, STKL: 1, KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
         
         calculator.calculate(input);
@@ -513,7 +526,7 @@ describe('MRE4ABZ Module', () => {
     test('sollte ANP, SAP, ZVBEZ, ZRE4 und ZRE4VP korrekt berechnen', () => {
         const input = {
             // MPARA Inputs
-            KRV: 0, KVZ: 0, PVS: 0, PVZ: 0, PVA: 0,
+            KRV: 0, KVZ: 0, PVS: 0, PVZ: 0, PVA: 0, // KVZ und PVZ sind 0 hier!
             // MRE4JL Inputs
             LZZ: 1,
             RE4: 5000000,    // 50000.00 Cent Jahresarbeitslohn
@@ -529,11 +542,13 @@ describe('MRE4ABZ Module', () => {
             VBEZBSO: 0,
             ALTER1: 0,
             AJAHR: 0,
-            // MRE4ABZ und MBERECH spezifische Inputs
+            // MRE4ABZ und MBERECH, MSONST spezifische Inputs
             RE4J: 5500000,   // 55000.00 Cent Jahresarbeitslohn für Vorsorgepauschale (Korrektur hier)
             SACHBEZUG: 0,    // Sachbezüge
             STKL: 1, // Für MBERECH
             KFB: 0, // Für MBERECH
+            RE4SO: 0, // Für MSONST
+            LZZSO: 0, // Für MSONST
         };
 
         calculator.calculate(input);
@@ -588,11 +603,13 @@ describe('MRE4ABZ Module', () => {
             VBEZBSO: 0,
             ALTER1: 1,       // Aktiver Altersentlastungsbetrag
             AJAHR: 2025,
-            // MRE4ABZ und MBERECH spezifische Inputs
+            // MRE4ABZ und MBERECH, MSONST spezifische Inputs
             RE4J: 10000,     // 100.00 Cent
             SACHBEZUG: 0,
             STKL: 1,
             KFB: 0,
+            F: 1,
+            RE4SO: 0, LZZSO: 0,
         };
         // FVB (aus MRE4): VBEZ = 50, ZVBEZJ = 50. J=21, SATZ=0.132.
         // Initial FVB = (50 * 0.132) = 6.60. Max FVB = min(990.00, ZVBEZJ (50.00)) = 50.00. So FVB = 6.60 (da 6.60 < 50.00).
@@ -630,11 +647,12 @@ describe('MRE4ABZ Module', () => {
             AF: 0,
             // MRE4 & MRE4ALTE Inputs
             VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
-            // MRE4ABZ und MBERECH spezifische Inputs
+            // MRE4ABZ und MBERECH, MSONST spezifische Inputs
             RE4J: 5000000,   // 50000.00 Cent
             SACHBEZUG: 0,
             STKL: 1,
             KFB: 0,
+            RE4SO: 0, LZZSO: 0,
         };
 
         calculator.calculate(input);
@@ -668,11 +686,12 @@ describe('MBERECH Module', () => {
             LZZ: 1, RE4: 5000000, VBEZ: 0, LZZFREIB: 0, LZZHINZU: 0, AF: 0,
             VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
             SACHBEZUG: 0,
-            // MBERECH spezifische Inputs
+            // MBERECH, MSONST spezifische Inputs
             RE4J: 5000000, // Jahresarbeitslohn für Vorsorgepauschale (in Cent)
             STKL: 1, // Steuerklasse 1
             KFB: 0, // Kein Kinderfreibetrag
             F: 1, // Kein Faktorverfahren
+            RE4SO: 0, LZZSO: 0,
         };
         // MPARA wird durch calculate() aufgerufen, daher keine manuelle Zuweisung hier.
         // Die RVSATZAN, KVSATZAN, PVSATZAN werden von MPARA basierend auf dem input gesetzt.
@@ -698,9 +717,9 @@ describe('MBERECH Module', () => {
         // VSP1 = min(50000, 96600) * 0.093 = 4650.00
         expect(calculator.VSP1).toBeCloseTo(4650.00);
         // VSP2 = min(RE4J / 100, BBGKVPV_2025_CENT / 100) * (KVSATZAN + PVSATZAN)
-        // VSP2 = min(50000, 66150) * (0.07 + 0.023) = 50000 * 0.093 = 4650.00 // Korrektur hier
-        expect(calculator.VSP2).toBeCloseTo(4650.00); // Korrigierter erwarteter Wert
-        expect(calculator.VSP).toBeCloseTo(4650.00 + 4650.00); // 9300.00 // Korrektur hier
+        // VSP2 = min(50000, 66150) * (0.07 + 0.023) = 50000 * 0.093 = 4650.00
+        expect(calculator.VSP2).toBeCloseTo(4650.00);
+        expect(calculator.VSP).toBeCloseTo(4650.00 + 4650.00); // 9300.00
 
         expect(calculator.X).toBeCloseTo(48764.00);
         expect(calculator.ST).toBeCloseTo(48764.00); // LST2025 Platzhalter gibt X zurück
@@ -717,6 +736,7 @@ describe('MBERECH Module', () => {
             STKL: 1,
             KFB: 0,
             F: 1,
+            RE4SO: 0, LZZSO: 0,
         };
         // MPARA wird durch calculate() aufgerufen, daher keine manuelle Zuweisung hier.
 
@@ -747,6 +767,7 @@ describe('MBERECH Module', () => {
             STKL: 2, // Steuerklasse 2
             KFB: 2000.00, // Kinderfreibetrag
             F: 1,
+            RE4SO: 0, LZZSO: 0,
         };
         // MPARA wird durch calculate() aufgerufen, daher keine manuelle Zuweisung hier.
 
@@ -776,6 +797,7 @@ describe('MBERECH Module', () => {
             STKL: 3, // Steuerklasse 3
             KFB: 0,
             F: 0.9, // Faktor
+            RE4SO: 0, LZZSO: 0,
         };
         // MPARA wird durch calculate() aufgerufen, daher keine manuelle Zuweisung hier.
 
@@ -792,5 +814,122 @@ describe('MBERECH Module', () => {
         expect(calculator.ZVE).toBeCloseTo(48764.00);
         expect(calculator.X).toBeCloseTo(54182.22);
         expect(calculator.ST).toBeCloseTo(54182.22);
+    });
+});
+
+describe('MSONST Module', () => {
+    let calculator;
+
+    beforeEach(() => {
+        calculator = new TaxCalculator2025();
+    });
+
+    // Testfall 1: Standardfall mit sonstigen Bezügen
+    test('sollte Lohnsteuer für sonstige Bezüge korrekt berechnen (Standardfall)', () => {
+        const input = {
+            // MPARA inputs (standard, ensure no NaN for rates)
+            KRV: 0, KVZ: 1.0, PVS: 0, PVZ: 0, PVA: 0,
+            // MRE4JL inputs (to set JLFREIB, JLHINZU, ZRE4J, ZVBEZJ)
+            LZZ: 1, RE4: 3000000, VBEZ: 0, LZZFREIB: 0, LZZHINZU: 0, AF: 0,
+            // MRE4 & MRE4ALTE inputs (to set FVB, ALTE, FVBSO)
+            VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
+            // MRE4ABZ specific inputs
+            SACHBEZUG: 0,
+            // MBERECH specific inputs
+            RE4J: 3000000, // This is already in the original input
+            STKL: 1, KFB: 0, F: 1, // F is 1 if AF is 0
+            // MSONST specific inputs
+            RE4SO: 500000, LZZSO: 0,
+        };
+        calculator.calculate(input);
+
+        // ZRE4SO = (RE4J - RE4 + RE4SO - (FVBSO * 100) - (ALTE * 100) - JLFREIB + JLHINZU) / 100
+        // ZRE4SO = (3000000 - 3000000 + 500000 - (0 * 100) - (0 * 100) - 0 + 0) / 100 = 500000 / 100 = 5000 Euro
+        expect(calculator.ZRE4SO).toBeCloseTo(5000.00);
+
+        // JBMG = ZRE4SO = 5000 Euro
+        expect(calculator.JBMG).toBeCloseTo(5000.00);
+
+        // ZTABFB = JBMG - ANP - SAP = 5000 - 1200 - 36 = 3764 Euro
+        expect(calculator.ANP).toBeCloseTo(1200.00); // Prüfen, ob ANP gesetzt ist
+        expect(calculator.SAP).toBeCloseTo(36.00); // Prüfen, ob SAP gesetzt ist
+        expect(calculator.ZTABFB).toBeCloseTo(3764.00);
+
+        // LSTSO wird durch LST2025 berechnet.
+        // Für ZTABFB = 3764 (STKL 1) ist die Lohnsteuer 0, da unter Grundfreibetrag (11784 Euro).
+        expect(calculator.LSTSO).toBeCloseTo(3764.00); // LST2025 ist ein Platzhalter und gibt ZTABFB zurück
+        expect(calculator.STS).toBeCloseTo(0.00);
+        expect(calculator.SOLZS).toBeCloseTo(0.00);
+        expect(calculator.BKS).toBeCloseTo(0.00);
+    });
+
+    // Testfall 2: RE4SO = 0, sollte LSTSO und zugehörige Werte auf 0 setzen
+    test('sollte LSTSO und zugehörige Werte auf 0 setzen, wenn RE4SO = 0', () => {
+        const input = {
+            // MPARA inputs
+            KRV: 0, KVZ: 1.0, PVS: 0, PVZ: 0, PVA: 0,
+            // MRE4JL inputs
+            LZZ: 1, RE4: 3000000, VBEZ: 0, LZZFREIB: 0, LZZHINZU: 0, AF: 0,
+            // MRE4 & MRE4ALTE inputs
+            VJAHR: 0, VBEZM: 0, VBEZS: 0, ZMVB: 0, VBEZBSO: 0, ALTER1: 0, AJAHR: 0,
+            // MRE4ABZ specific inputs
+            SACHBEZUG: 0,
+            // MBERECH specific inputs
+            RE4J: 3000000,
+            STKL: 1, KFB: 0, F: 1,
+            // MSONST specific inputs
+            RE4SO: 0, // Keine sonstigen Bezüge
+            LZZSO: 0,
+        };
+        calculator.calculate(input);
+
+        expect(calculator.LSTSO).toBeCloseTo(0.00);
+        expect(calculator.STS).toBeCloseTo(0.00);
+        expect(calculator.SOLZS).toBeCloseTo(0.00);
+        expect(calculator.BKS).toBeCloseTo(0.00);
+    });
+
+    // Testfall 3: ZRE4SO, JBMG und ZTABFB auf 0 begrenzen, wenn sie negativ wären
+    test('sollte ZRE4SO, JBMG und ZTABFB auf 0 begrenzen, wenn sie negativ wären', () => {
+        const input = {
+            // MPARA inputs
+            KRV: 0, KVZ: 1.0, PVS: 0, PVZ: 0, PVA: 0,
+            // MRE4JL inputs
+            LZZ: 1,
+            RE4: 3000000,    // 30000.00 Cent
+            VBEZ: 250000,    // VBEZ für FVB Berechnung (2500 Euro)
+            LZZFREIB: 100000, // 1000.00 Cent (führt zu JLFREIB = 1000.00 Euro)
+            LZZHINZU: 0,
+            AF: 0,
+            // MRE4 & MRE4ALTE inputs
+            VJAHR: 2005,      // Für FVB
+            VBEZM: 0,
+            VBEZS: 250000,   // Für VBEZB (2500 Euro)
+            ZMVB: 12,
+            VBEZBSO: 0,       // Keine sonstigen Versorgungsbezüge für FVBSO in diesem Test
+            ALTER1: 1,       // Für ALTE
+            AJAHR: 2005,      // Für ALTE
+            // MRE4ABZ specific inputs
+            SACHBEZUG: 0,
+            // MBERECH specific inputs
+            RE4J: 3000000, // 30000.00 Cent
+            STKL: 1, KFB: 0, F: 1,
+            // MSONST specific inputs
+            RE4SO: 100000, // 1.000 Euro sonstige Bezüge (in Cent)
+            LZZSO: 0,
+        };
+        calculator.calculate(input);
+
+        // state.FVB wird 1000.00 (berechnet aus VBEZ=250000 und VJAHR=2005)
+        // state.ALTE wird 500.00 (berechnet aus RE4=3000000, VBEZ=250000, ALTER1=1, AJAHR=2005)
+        // state.JLFREIB wird 1000.00 (berechnet aus LZZFREIB=100000)
+
+        // ZRE4SO = (RE4J / 100) - (RE4 / 100) + (RE4SO / 100) - state.FVBSO - state.ALTE - state.JLFREIB + state.JLHINZU
+        // ZRE4SO = (30000 - 30000 + 1000) - 1000 - 500 - 1000 + 0 = -1500
+        // Dann auf 0 begrenzt.
+        expect(calculator.ZRE4SO).toBeCloseTo(0.00);
+        expect(calculator.JBMG).toBeCloseTo(0.00);
+        expect(calculator.ZTABFB).toBeCloseTo(0.00);
+        expect(calculator.LSTSO).toBeCloseTo(0.00);
     });
 });

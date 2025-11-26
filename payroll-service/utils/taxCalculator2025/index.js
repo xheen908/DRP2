@@ -5,7 +5,8 @@ const MPARA = require('./MPARA');
 const MRE4JL = require('././MRE4JL');
 const MRE4 = require('./MRE4');
 const MRE4ABZ = require('./MRE4ABZ');
-const MBERECH = require('./MBERECH'); // MBERECH hinzugefügt
+const { MBERECH, LST2025 } = require('./MBERECH'); // MBERECH und LST2025 hinzugefügt
+const MSONST = require('./MSONST'); // MSONST hinzugefügt
 
 /**
  * Verwaltet den Zustand (interne Felder und Eingabeparameter) für die Lohnsteuerberechnung
@@ -34,7 +35,7 @@ class TaxCalculator2025 {
         this.HFVBZSO = 0; // Dieser Wert wird von MRE4 gesetzt
         this.HOCH = 0;
         this.J = 0; // Dieser Wert wird von MRE4 gesetzt
-        this.JBMG = 0;
+        this.JBMG = 0; // Neu für MSONST
         this.JLFREIB = 0;
         this.JLHINZU = 0;
         this.JW = 0; // Neu für MBERECH
@@ -45,7 +46,7 @@ class TaxCalculator2025 {
         this.KZTAB = 0;
         this.LSTJAHR = 0;
         this.LSTOSO = 0;
-        this.LSTSO = 0;
+        this.LSTSO = 0; // Neu für MSONST
         this.MIST = 0;
         this.PVSATZAG = 0;
         this.PVSATZAN = 0;
@@ -60,6 +61,7 @@ class TaxCalculator2025 {
         this.ST = 0;
         this.ST1 = 0;
         this.ST2 = 0;
+        this.STS = 0; // Neu für MSONST
         // Tabellen müssen noch als Objekte oder Arrays definiert werden, falls nicht in constants.js
         this.TAB1 = {};
         this.TAB2 = {};
@@ -83,8 +85,9 @@ class TaxCalculator2025 {
         this.Y = 0;
         this.ZRE4 = 0; // Dieser Wert wird von MRE4ABZ gesetzt
         this.ZRE4J = 0;
+        this.ZRE4SO = 0; // Neu für MSONST
         this.ZRE4VP = 0; // Dieser Wert wird von MRE4ABZ gesetzt
-        this.ZTABFB = 0;
+        this.ZTABFB = 0; // Neu für MSONST
         this.ZVBEZ = 0; // Dieser Wert wird von MRE4ABZ gesetzt
         this.ZVBEZJ = 0;
         this.ZVE = 0;
@@ -150,7 +153,7 @@ class TaxCalculator2025 {
         MRE4(this, this.input);
         MRE4ABZ(this, this.input);
         MBERECH(this, this.input); // MBERECH wird aufgerufen
-        // MSONST(this, this.input);
+        MSONST(this, this.input); // MSONST wird aufgerufen
 
         console.log("Finished Lohnsteuerberechnung 2025.");
         return this.output; // Gibt die Ausgangsparameter zurück

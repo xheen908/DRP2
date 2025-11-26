@@ -80,4 +80,4 @@ function MBERECH(state, input) {
     console.log("Exiting MBERECH module.");
 }
 
-module.exports = MBERECH;
+module.exports = { MBERECH, LST2025 }; // Beide Funktionen exportieren!
