@@ -2,9 +2,10 @@
 
 // Importiere alle Unterprogramme
 const MPARA = require('./MPARA');
-const MRE4JL = require('./MRE4JL');
+const MRE4JL = require('././MRE4JL');
 const MRE4 = require('./MRE4');
-const MRE4ABZ = require('./MRE4ABZ'); // MRE4ABZ hinzugefügt
+const MRE4ABZ = require('./MRE4ABZ');
+const MBERECH = require('./MBERECH'); // MBERECH hinzugefügt
 
 /**
  * Verwaltet den Zustand (interne Felder und Eingabeparameter) für die Lohnsteuerberechnung
@@ -36,9 +37,9 @@ class TaxCalculator2025 {
         this.JBMG = 0;
         this.JLFREIB = 0;
         this.JLHINZU = 0;
-        this.JW = 0;
+        this.JW = 0; // Neu für MBERECH
         this.K = 0; // Dieser Wert wird von MRE4ALTE gesetzt
-        this.KFB = 0;
+        this.KFB = 0; // Kinderfreibetrag
         this.KVSATZAG = 0;
         this.KVSATZAN = 0;
         this.KZTAB = 0;
@@ -70,11 +71,11 @@ class TaxCalculator2025 {
         this.VERGL = 0;
         this.VHB = 0;
         this.VKV = 0;
-        this.VSP = 0;
+        this.VSP = 0; // Neu für MBERECH
         this.VSPN = 0;
-        this.VSP1 = 0;
-        this.VSP2 = 0;
-        this.VSP3 = 0;
+        this.VSP1 = 0; // Neu für MBERECH
+        this.VSP2 = 0; // Neu für MBERECH
+        this.VSP3 = 0; // Neu für MBERECH
         this.W1STKL5 = 0;
         this.W2STKL5 = 0;
         this.W3STKL5 = 0;
@@ -89,8 +90,8 @@ class TaxCalculator2025 {
         this.ZVE = 0;
         this.ZX = 0;
         this.ZZX = 0;
-        this.F = 0;
-
+        this.F = 0; // F wird in MRE4JL gesetzt
+        
         // Eingabeparameter
         this.input = {};
         // Ausgangsparameter gemäß PAP, Abschnitt 3.2
@@ -147,8 +148,8 @@ class TaxCalculator2025 {
         MPARA(this, this.input);
         MRE4JL(this, this.input);
         MRE4(this, this.input);
-        MRE4ABZ(this, this.input); // MRE4ABZ wird aufgerufen
-        // MBERECH(this, this.input);
+        MRE4ABZ(this, this.input);
+        MBERECH(this, this.input); // MBERECH wird aufgerufen
         // MSONST(this, this.input);
 
         console.log("Finished Lohnsteuerberechnung 2025.");
