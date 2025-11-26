@@ -1,58 +1,108 @@
 // DRP2/payroll-service/tests/taxCalculator.test.js
-import { calculateTax } from '../utils/taxCalculator.js';
-import { bmfTestCases } from './bmfTestCases.js'; // Importiere die BMF Testfälle
 
-// Da wir kein Jest verwenden und die package.json nicht ändern dürfen,
-// werden wir einen einfachen manuellen Test-Runner erstellen.
+const TaxCalculator2025 = require('../utils/taxCalculator2025/index');
+const CONSTANTS = require('../utils/taxCalculator2025/constants');
 
-function runTests() {
-  let passedTests = 0;
-  let totalTests = 0;
+describe('MPARA Module', () => {
+    let calculator;
 
-  console.log('Starte BMF-Lohnsteuerberechnungs-Tests...');
+    beforeEach(() => {
+        calculator = new TaxCalculator2025();
+    });
 
-  bmfTestCases.forEach((testCase, index) => {
-    totalTests++;
-    console.log(`\nFühre Testfall ${index + 1}: "${testCase.description}" aus...`);
-    try {
-      const result = calculateTax(testCase.input);
+    // Testfall 1: Standardwerte für einen gesetzlich Versicherten ohne Sachsen, kinderlos
+    test('sollte korrekte Parameter für einen gesetzlich Versicherten (KRV=0, PVS=0, PVZ=1, PVA=0) setzen', () => {
+        const input = {
+            KRV: 0,   // Gesetzlich rentenversichert
+            KVZ: 2.50, // Kassenindividueller Zusatzbeitragssatz 2.50%
+            PVS: 0,   // Keine Besonderheiten in Sachsen
+            PVZ: 1,   // Zuschlag für Kinderlose zu zahlen
+            PVA: 0    // Keine Beitragsabschläge für Kinder
+        };
 
-      let testPassed = true;
-      for (const key in testCase.expected) {
-        // Vergleich der erwarteten und tatsächlichen Werte
-        if (result[key] !== testCase.expected[key]) {
-          console.error(`  Fehler im Feld ${key}: Erwartet ${testCase.expected[key]}, Erhalten ${result[key]}`);
-          testPassed = false;
-        }
-      }
+        calculator.calculate(input); // Ruft MPARA intern auf
 
-      if (testPassed) {
-        console.log(`  Testfall ${index + 1} BESTANDEN.`);
-        passedTests++;
-      } else {
-        console.error(`  Testfall ${index + 1} FEHLGESCHLAGEN.`);
-        // Optional: Detaillierte Ausgabe der Ergebnisse bei Fehlschlag
-        console.error("  Eingabe:", testCase.input);
-        console.error("  Erwartetes Ergebnis:", testCase.expected);
-        console.error("  Tatsächliches Ergebnis:", result);
-      }
-    } catch (error) {
-      console.error(`  Fehler beim Ausführen von Testfall ${index + 1}:`, error);
-      console.error("  Eingabe, die den Fehler verursacht hat:", testCase.input);
-    }
-  });
+        // Erwartete Werte aus der Skizze und den Konstanten
+        expect(calculator.BBGRV).toBe(CONSTANTS.BBGRV_2025_CENT);
+        expect(calculator.RVSATZAN).toBe(CONSTANTS.RVSATZ_AN_2025);
+        expect(calculator.BBGKVPV).toBe(CONSTANTS.BBGKVPV_2025_CENT);
+        
+        // KVSATZAN: (2.50 / 2 / 100) + 0.07 = 0.0125 + 0.07 = 0.0825
+        expect(calculator.KVSATZAN).toBeCloseTo(0.0825); 
+        expect(calculator.KVSATZAG).toBeCloseTo(CONSTANTS.KVSATZ_AG_FIX_2025); // 0.0125 + 0.07 = 0.0825
 
-  console.log(`\n--- Testzusammenfassung ---`);
-  console.log(`Gesamtzahl der Tests: ${totalTests}`);
-  console.log(`Bestandene Tests: ${passedTests}`);
-  console.log(`Fehlgeschlagene Tests: ${totalTests - passedTests}`);
+        // PVSATZAN: 0.023 (normal) + 0.006 (kinderlos) - 0 (PVA) = 0.029
+        expect(calculator.PVSATZAN).toBeCloseTo(0.029);
+        expect(calculator.PVSATZAG).toBeCloseTo(CONSTANTS.PVSATZ_AG_NORMAL_2025); // 0.013
 
-  if (passedTests === totalTests) {
-    console.log('Alle BMF-Testfälle BESTANDEN!');
-  } else {
-    console.error('Einige BMF-Testfälle SIND FEHLGESCHLAGEN. Bitte überprüfen Sie die Details oben.');
-  }
-}
+        expect(calculator.W1STKL5).toBe(CONSTANTS.W1STKL5_2025_CENT);
+        expect(calculator.W2STKL5).toBe(CONSTANTS.W2STKL5_2025_CENT);
+        expect(calculator.W3STKL5).toBe(CONSTANTS.W3STKL5_2025_CENT);
+        expect(calculator.GFB).toBe(CONSTANTS.GFB_2025_CENT);
+        expect(calculator.SOLZFREI).toBe(CONSTANTS.SOLZFREI_2025_CENT);
+    });
 
-// Führe die Tests aus
-runTests();
+    // Testfall 2: Nicht gesetzlich rentenversichert (KRV=1)
+    test('sollte BBGRV und RVSATZAN auf 0 setzen, wenn KRV=1', () => {
+        const input = {
+            KRV: 1, // Nicht gesetzlich rentenversichert
+            KVZ: 1.00,
+            PVS: 0,
+            PVZ: 0,
+            PVA: 0
+        };
+
+        calculator.calculate(input);
+
+        expect(calculator.BBGRV).toBe(0);
+        expect(calculator.RVSATZAN).toBe(0);
+    });
+
+    // Testfall 3: Besonderheiten in Sachsen (PVS=1)
+    test('sollte PV-Sätze für Sachsen anpassen, wenn PVS=1', () => {
+        const input = {
+            KRV: 0,
+            KVZ: 1.00,
+            PVS: 1, // Besonderheiten in Sachsen
+            PVZ: 0,
+            PVA: 0
+        };
+
+        calculator.calculate(input);
+
+        expect(calculator.PVSATZAN).toBeCloseTo(CONSTANTS.PVSATZ_AN_SACHSEN_2025); // 0.018
+        expect(calculator.PVSATZAG).toBeCloseTo(CONSTANTS.PVSATZ_AG_SACHSEN_2025); // 0.018
+    });
+
+    // Testfall 4: Beitragsabschläge für Kinder (PVA > 0)
+    test('sollte PVSATZAN um Beitragsabschläge reduzieren (PVA=2)', () => {
+        const input = {
+            KRV: 0,
+            KVZ: 1.00,
+            PVS: 0,
+            PVZ: 1, // Kinderlos, um den Basissatz zu haben vor Abzügen
+            PVA: 2 // 2 Beitragsabschläge
+        };
+
+        calculator.calculate(input);
+
+        // Erwarteter PVSATZAN: 0.023 (normal) + 0.006 (kinderlos) - (2 * 0.0025) = 0.029 - 0.005 = 0.024
+        expect(calculator.PVSATZAN).toBeCloseTo(0.024);
+    });
+
+    // Testfall 5: PVSATZAN sollte nicht negativ werden
+    test('sollte PVSATZAN nicht negativ werden, selbst bei hohen PVA-Werten', () => {
+        const input = {
+            KRV: 0,
+            KVZ: 1.00,
+            PVS: 0,
+            PVZ: 0, // Nicht kinderlos, um den niedrigsten Startwert zu haben
+            PVA: 10 // Unrealistisch hoher Wert, um Negativtest zu erzwingen
+        };
+
+        calculator.calculate(input);
+
+        // 0.023 (normal) - (10 * 0.0025) = 0.023 - 0.025 = -0.002. Sollte auf 0 gesetzt werden.
+        expect(calculator.PVSATZAN).toBe(0);
+    });
+});
