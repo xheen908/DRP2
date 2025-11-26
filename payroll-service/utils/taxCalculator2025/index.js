@@ -2,8 +2,8 @@
 
 // Importiere alle Unterprogramme
 const MPARA = require('./MPARA');
-const MRE4JL = require('./MRE4JL'); // MRE4JL hinzugefügt
-// const MRE4 = require('./MRE4'); 
+const MRE4JL = require('./MRE4JL');
+const MRE4 = require('./MRE4'); // MRE4 hinzugefügt
 
 /**
  * Verwaltet den Zustand (interne Felder und Eingabeparameter) für die Lohnsteuerberechnung
@@ -13,30 +13,30 @@ class TaxCalculator2025 {
     constructor() {
         // Initialisiere alle internen Felder gemäß PAP, Abschnitt 4.
         // Die Namen der Felder entsprechen exakt den Bezeichnungen im PAP.
-        this.ALTE = 0;
+        this.ALTE = 0; // Dieser Wert wird von MRE4ALTE gesetzt
         this.ANP = 0;
         this.ANTEIL1 = 0;
         this.BBGKVPV = 0;
         this.BBGRV = 0;
-        this.BMG = 0;
+        this.BMG = 0; // Dieser Wert wird von MRE4ALTE gesetzt
         this.DIFF = 0;
         this.EFA = 0;
-        this.FVB = 0;
-        this.FVBSO = 0;
-        this.FVBZ = 0;
-        this.FVBZSO = 0;
+        this.FVB = 0; // Dieser Wert wird von MRE4 gesetzt
+        this.FVBSO = 0; // Dieser Wert wird von MRE4 gesetzt
+        this.FVBZ = 0; // Dieser Wert wird von MRE4 gesetzt
+        this.FVBZSO = 0; // Dieser Wert wird von MRE4 gesetzt
         this.GFB = 0;
-        this.HBALTE = 0;
-        this.HFVB = 0;
-        this.HFVBZ = 0;
-        this.HFVBZSO = 0;
+        this.HBALTE = 0; // Dieser Wert wird von MRE4ALTE gesetzt
+        this.HFVB = 0; // Dieser Wert wird von MRE4 gesetzt
+        this.HFVBZ = 0; // Dieser Wert wird von MRE4 gesetzt
+        this.HFVBZSO = 0; // Dieser Wert wird von MRE4 gesetzt
         this.HOCH = 0;
-        this.J = 0;
+        this.J = 0; // Dieser Wert wird von MRE4 gesetzt
         this.JBMG = 0;
         this.JLFREIB = 0;
         this.JLHINZU = 0;
         this.JW = 0;
-        this.K = 0;
+        this.K = 0; // Dieser Wert wird von MRE4ALTE gesetzt
         this.KFB = 0;
         this.KVSATZAG = 0;
         this.KVSATZAN = 0;
@@ -64,7 +64,7 @@ class TaxCalculator2025 {
         this.TAB3 = {};
         this.TAB4 = {};
         this.TAB5 = {};
-        this.VBEZB = 0;
+        this.VBEZB = 0; // Dieser Wert wird von MRE4 gesetzt
         this.VBEZBSO = 0;
         this.VERGL = 0;
         this.VHB = 0;
@@ -80,15 +80,14 @@ class TaxCalculator2025 {
         this.X = 0;
         this.Y = 0;
         this.ZRE4 = 0;
-        this.ZRE4J = 0; // Dieser Wert wird von MRE4JL gesetzt
+        this.ZRE4J = 0;
         this.ZRE4VP = 0;
         this.ZTABFB = 0;
         this.ZVBEZ = 0;
-        this.ZVBEZJ = 0; // Dieser Wert wird von MRE4JL gesetzt
+        this.ZVBEZJ = 0;
         this.ZVE = 0;
         this.ZX = 0;
         this.ZZX = 0;
-        // Faktor F, der von MRE4JL gesetzt werden kann
         this.F = 0;
 
         // Eingabeparameter
@@ -145,8 +144,8 @@ class TaxCalculator2025 {
 
         // Hauptsteuerung des Programmablaufplans (Seite 13 des Dokuments)
         MPARA(this, this.input);
-        MRE4JL(this, this.input); // MRE4JL wird aufgerufen
-        // MRE4(this, this.input);
+        MRE4JL(this, this.input);
+        MRE4(this, this.input); // MRE4 wird aufgerufen
         // MRE4ABZ(this, this.input);
         // MBERECH(this, this.input);
         // MSONST(this, this.input);
