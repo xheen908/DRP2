@@ -2,7 +2,8 @@
 
 // Importiere alle Unterprogramme
 const MPARA = require('./MPARA');
-// const MRE4JL = require('./MRE4JL'); // Werden später hinzugefügt
+const MRE4JL = require('./MRE4JL'); // MRE4JL hinzugefügt
+// const MRE4 = require('./MRE4'); 
 
 /**
  * Verwaltet den Zustand (interne Felder und Eingabeparameter) für die Lohnsteuerberechnung
@@ -79,14 +80,16 @@ class TaxCalculator2025 {
         this.X = 0;
         this.Y = 0;
         this.ZRE4 = 0;
-        this.ZRE4J = 0;
+        this.ZRE4J = 0; // Dieser Wert wird von MRE4JL gesetzt
         this.ZRE4VP = 0;
         this.ZTABFB = 0;
         this.ZVBEZ = 0;
-        this.ZVBEZJ = 0;
+        this.ZVBEZJ = 0; // Dieser Wert wird von MRE4JL gesetzt
         this.ZVE = 0;
         this.ZX = 0;
         this.ZZX = 0;
+        // Faktor F, der von MRE4JL gesetzt werden kann
+        this.F = 0;
 
         // Eingabeparameter
         this.input = {};
@@ -142,7 +145,7 @@ class TaxCalculator2025 {
 
         // Hauptsteuerung des Programmablaufplans (Seite 13 des Dokuments)
         MPARA(this, this.input);
-        // MRE4JL(this, this.input); // Werden später hinzugefügt
+        MRE4JL(this, this.input); // MRE4JL wird aufgerufen
         // MRE4(this, this.input);
         // MRE4ABZ(this, this.input);
         // MBERECH(this, this.input);

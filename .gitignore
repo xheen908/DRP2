@@ -10,6 +10,7 @@ node_modules/
 jspm_packages/
 web_modules/
 dbfiles/
+pdf-extractor-pap/
 
 empty_db.sql
 backup.sql
