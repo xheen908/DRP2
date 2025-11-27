@@ -1,0 +1,35 @@
+# Verwenden Sie ein offizielles Node.js-Laufzeitimage als Basis
+FROM node:18-alpine
+
+# Setzen Sie das Arbeitsverzeichnis im Container
+WORKDIR /app
+
+# Kopieren Sie package.json und package-lock.json in das Arbeitsverzeichnis
+COPY package*.json ./
+
+# Installieren Sie alle Abhängigkeiten
+RUN npm install
+
+# NEU: Installieren Sie rclone im Alpine-Linux-Image
+# Führen Sie ein Update der Paketliste durch
+# Installieren Sie ca-certificates (für HTTPS-Verbindungen von rclone)
+# Laden Sie rclone herunter
+# Entpacken Sie rclone
+# Verschieben Sie die rclone-Binärdatei in ein Verzeichnis im PATH
+# Bereinigen Sie den Cache, um die Image-Größe zu reduzieren
+RUN apk update && \
+    apk add --no-cache ca-certificates && \
+    wget https://downloads.rclone.org/rclone-current-linux-amd64.zip && \
+    unzip rclone-current-linux-amd64.zip && \
+    mv rclone-v*-linux-amd64/rclone /usr/bin/ && \
+    rm -rf rclone-v*-linux-amd64 rclone-current-linux-amd64.zip && \
+    apk del wget unzip
+
+# Kopieren Sie den Rest des Anwendungscodes in das Arbeitsverzeichnis
+COPY . .
+
+# Exponieren Sie den Port, auf dem die App läuft
+EXPOSE 3010 
+
+# Definieren Sie den Befehl zum Starten der App
+CMD ["npm", "start"]

@@ -294,6 +294,29 @@ services:
     networks:
       - drp_network
 
+  filestorage-service: # NEUER SERVICE-BLOCK FÜR FILE STORAGE SERVICE
+    build:
+      context: ./filestorage-service
+      dockerfile: Dockerfile
+    container_name: drp_filestorage_service
+    restart: always
+    ports:
+      - "3010:3010" # Host-Port 3010 wird auf Container-Port 3010 gemappt
+    volumes:
+      - "./filestorage-service:/app" # Bind-Mount des Service-Verzeichnisses
+    environment:
+      PORT: 3010 # Interner Port des Express-Servers im Container auf 3010 gesetzt
+      RCLONE_REMOTE_NAME: ${RCLONE_REMOTE_NAME}
+      RCLONE_BUCKET_NAME: ${RCLONE_BUCKET_NAME}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+    networks:
+      - drp_network
+    depends_on:
+      api-gateway:
+        condition: service_started
+
   # --------------------------------------------------------------------------
   # Zentrale MySQL Datenbank-Dienst (ein Container, mehrere Datenbanken)
   # --------------------------------------------------------------------------

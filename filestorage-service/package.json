@@ -1,0 +1,22 @@
+{
+    "name": "filestorage-service",
+    "version": "1.0.0",
+    "description": "Service for global file storage using Express.js and rclone with Cloudflare S3",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js",
+        "dev": "nodemon server.js"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "dotenv": "^16.6.1",
+        "express": "^4.21.2",
+        "multer": "^1.4.5-lts.1"
+    },
+    "devDependencies": {
+        "nodemon": "^3.1.11"
+    },
+    "type": "commonjs"
+}

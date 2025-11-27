@@ -18,6 +18,7 @@ const CLIENT_SERVICE_URL = process.env.CLIENT_SERVICE_URL;
 const FRONTEND_EJS_SERVICE_URL = process.env.FRONTEND_EJS_SERVICE_URL;
 const HR_SERVICE_URL = process.env.HR_SERVICE_URL;
 const PAYROLL_SERVICE_URL = process.env.PAYROLL_SERVICE_URL;
+const FILE_STORAGE_SERVICE_URL = process.env.FILE_STORAGE_SERVICE_URL; // NEU: File Storage Service URL
 const JWT_SECRET = process.env.JWT_SECRET;
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
@@ -33,6 +34,9 @@ if (!HR_SERVICE_URL) {
 }
 if (!PAYROLL_SERVICE_URL) {
     console.warn('WARNUNG: PAYROLL_SERVICE_URL ist im API Gateway nicht gesetzt. Payroll-Proxy könnte fehlschlagen.');
+}
+if (!FILE_STORAGE_SERVICE_URL) { // NEU: Warnung für File Storage Service URL
+    console.warn('WARNUNG: FILE_STORAGE_SERVICE_URL ist im API Gateway nicht gesetzt. File Storage Proxy könnte fehlschlagen.');
 }
 
 app.use(cors({
@@ -78,6 +82,7 @@ app.use(helmet({
                 FRONTEND_EJS_SERVICE_URL,
                 HR_SERVICE_URL,
                 PAYROLL_SERVICE_URL,
+                FILE_STORAGE_SERVICE_URL, // NEU: File Storage Service URL
                 "https://maps.googleapis.com",
                 "https://*.googleapis.com",
                 "https://*.gstatic.com",
@@ -323,6 +328,29 @@ app.get('/admin/proxy-payroll-documents/uploads/*', authenticateGateway, httpPro
                 res.status(503).json({ message: `Payroll Service nicht verfügbar oder nicht erreichbar: ${err.message}` });
             } else {
                 res.status(500).json({ message: `Proxy-Fehler beim Abrufen von Payroll-Dokumenten: ${err.message}` });
+            }
+        }
+    }
+}));
+
+// NEUER PROXY-BLOCK FÜR DEN FILE STORAGE SERVICE
+app.use('/api/files', authenticateGateway, httpProxy(FILE_STORAGE_SERVICE_URL, {
+    proxyReqPathResolver: req => {
+        const resolvedPath = req.url; 
+        console.log(`[API Gateway Proxy] /api/files Proxy aktiv: Leite ${req.originalUrl} weiter als ${resolvedPath} an ${FILE_STORAGE_SERVICE_URL}`);
+        return resolvedPath;
+    },
+    proxyReqOptDecorator: setUserHeaders,
+    // Diese Optionen sind entscheidend für multipart/form-data Weiterleitung
+    parseReqBody: false, 
+    reqBodyEncoding: null, 
+    proxyErrorHandler: (err, res, next) => {
+        console.error(`[API Gateway Proxy Error] Fehler beim Weiterleiten von /api/files-Anfrage an ${FILE_STORAGE_SERVICE_URL}:`, err.code, err.message);
+        if (!res.headersSent) {
+            if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                res.status(503).json({ message: `File Storage Service nicht verfügbar oder nicht erreichbar: ${err.message}` });
+            } else {
+                res.status(500).json({ message: `Proxy-Fehler beim Abrufen von Dateidaten: ${err.message}` });
             }
         }
     }

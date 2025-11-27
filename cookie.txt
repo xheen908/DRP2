@@ -1,0 +1,10 @@
+$headers = @{"Content-Type"="application/json"}
+$body = '{"pin":"333333","password":"DsxY2cff"}'
+Invoke-WebRequest -Uri "http://localhost:3005/api/auth/login" -Method POST -Headers $headers -Body $body -SessionVariable session -ErrorAction Stop | Out-Null
+$cookies = $session.Cookies.GetCookies("http://localhost")
+$jwtCookie = $cookies | Where-Object {$_.Name -eq "jwt"}
+if ($jwtCookie) {
+    Write-Host "Login erfolgreich. JWT-Cookie gefunden: $($jwtCookie.Value)"
+} else {
+    Write-Host "Login fehlgeschlagen oder JWT-Cookie nicht gefunden."
+}
