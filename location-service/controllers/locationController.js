@@ -216,7 +216,7 @@ exports.getLocationsWithClientsForDropdown = async (req, res) => {
         }
         try {
             const locations = await Location.findAll({
-                attributes: ['id', 'name', 'address', 'client_id'] // Nur benötigte Felder
+                attributes: ['id', 'name', 'address', 'client_id', 'type'] // 'type' hinzugefügt
             });
             console.log(`[getLocationsWithClientsForDropdown] ${locations.length} Standorte gefunden.`);
 
@@ -232,7 +232,8 @@ exports.getLocationsWithClientsForDropdown = async (req, res) => {
                 name: location.name,
                 address: location.address,
                 client_id: location.client_id,
-                client_name: location.client_id ? clientMap.get(location.client_id) : null
+                client_name: location.client_id ? clientMap.get(location.client_id) : null,
+                type: location.type // 'type' hier ebenfalls ausgeben
             }));
 
             res.status(200).json(dataForDropdown);
@@ -245,11 +246,28 @@ exports.getLocationsWithClientsForDropdown = async (req, res) => {
     }, ['Manager', 'Admin', 'Disponent']);
 };
 
+// NEU: Standorte nach Typ abrufen
+exports.getLocationsByType = async (req, res) => {
+    authorize(req, res, async () => {
+        const { type } = req.params;
+        console.log(`[getLocationsByType] Standorte mit Typ "${type}" abrufen...`);
+        try {
+            const locations = await Location.findAll({
+                where: { type: type }
+            });
+            console.log(`[getLocationsByType] ${locations.length} Standorte mit Typ "${type}" gefunden.`);
+            res.status(200).json(locations);
+        } catch (error) {
+            console.error(`[getLocationsByType] Fehler beim Abrufen von Standorten mit Typ "${type}":`, error);
+            res.status(500).json({ message: 'Interner Serverfehler beim Abrufen von Standorten nach Typ.' });
+        }
+    }, ['Manager', 'Admin', 'Disponent', 'Monteur', 'Reinigungskraft', 'Payroll']); // Erweitern Sie die Rollen nach Bedarf
+};
 
 // Neuen Standort erstellen
 exports.createLocation = async (req, res) => {
     authorize(req, res, async () => {
-        const { name, address, latitude, longitude, nfc_tag_id, client_id } = req.body;
+        const { name, address, latitude, longitude, nfc_tag_id, client_id, type } = req.body; // 'type' hinzugefügt
         console.log(`[createLocation] Neuen Standort erstellen mit Daten: ${JSON.stringify(req.body)}`);
         console.log('Typ von Location in createLocation:', typeof Location);
         if (Location && typeof Location.create === 'function') {
@@ -281,7 +299,8 @@ exports.createLocation = async (req, res) => {
                 latitude,
                 longitude,
                 nfc_tag_id,
-                client_id
+                client_id,
+                type // 'type' hier speichern
             });
             console.log(`[createLocation] Standort ${newLocation.id} erfolgreich erstellt.`);
             res.status(201).json({ message: 'Standort erfolgreich erstellt.', location: newLocation });
@@ -300,7 +319,7 @@ exports.createLocation = async (req, res) => {
 exports.updateLocation = async (req, res) => {
     authorize(req, res, async () => {
         const { id } = req.params;
-        const { name, address, latitude, longitude, nfc_tag_id, client_id } = req.body;
+        const { name, address, latitude, longitude, nfc_tag_id, client_id, type } = req.body; // 'type' hinzugefügt
         console.log(`[updateLocation] Standort ${id} aktualisieren mit Daten: ${JSON.stringify(req.body)}`);
         console.log('Typ von Location in updateLocation:', typeof Location);
         if (Location && typeof Location.findByPk === 'function') {
@@ -334,6 +353,7 @@ exports.updateLocation = async (req, res) => {
             location.longitude = longitude !== undefined ? longitude : location.longitude;
             location.nfc_tag_id = nfc_tag_id !== undefined ? nfc_tag_id : location.nfc_tag_id;
             location.client_id = client_id !== undefined ? client_id : location.client_id;
+            location.type = type !== undefined ? type : location.type; // 'type' aktualisieren
 
             await location.save();
             console.log(`[updateLocation] Standort ${id} erfolgreich aktualisiert.`);
@@ -386,7 +406,7 @@ exports.getLocationsForMap = async (req, res) => {
         }
         try {
             const locations = await Location.findAll({
-                attributes: ['id', 'name', 'address', 'latitude', 'longitude', 'client_id']
+                attributes: ['id', 'name', 'address', 'latitude', 'longitude', 'client_id', 'type'] // 'type' hinzugefügt
             });
             console.log(`[getLocationsForMap] ${locations.length} Standorte für die Karte gefunden.`);
 
@@ -435,10 +455,11 @@ exports.validateCompanyLocation = async (req, res) => {
         try {
             const companyLocations = await Location.findAll({
                 where: {
+                    type: 'company_location', // Nur Standorte vom Typ 'company_location'
                     latitude: { [Op.ne]: null },
                     longitude: { [Op.ne]: null }
                 },
-                attributes: ['id', 'name', 'address', 'latitude', 'longitude']
+                attributes: ['id', 'name', 'address', 'latitude', 'longitude', 'type'] // 'type' hinzugefügt
             });
 
             const userLat = parseFloat(latitude);

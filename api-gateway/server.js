@@ -333,11 +333,76 @@ app.get('/admin/proxy-payroll-documents/uploads/*', authenticateGateway, httpPro
     }
 }));
 
-// NEUER PROXY-BLOCK FÜR DEN FILE STORAGE SERVICE
+// NEUE PROXY-REGEL FÜR FILE STORAGE DOWNLOADS (Öffentlicher Download-Zugriff)
+// DIESE ROUTE MUSS VOR DER GENERISCHEN /api/files REGEL STEHEN!
+app.get('/api/files/download/:filename(*)', (req, res, next) => {
+    // Hier können wir eine optionale Authentifizierung durchführen.
+    // Wenn ein Token vorhanden ist, wird es dekodiert und req.user gesetzt.
+    // Wenn kein Token vorhanden ist, wird req.user null sein, aber die Anfrage wird trotzdem weitergeleitet.
+    const token = req.cookies.jwt || req.headers['authorization']?.split(' ')[1];
+    if (token) {
+        try {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            req.user = decoded;
+            console.log('[API Gateway Auth] Optionales JWT dekodiert für Download:', req.user.id);
+        } catch (error) {
+            console.warn('[API Gateway Auth] Ungültiges oder abgelaufenes Token für Download, wird ignoriert:', error.message);
+            req.user = null; // Ungültiges Token, behandle als nicht authentifiziert
+        }
+    } else {
+        req.user = null; // Kein Token
+        console.log('[API Gateway Auth] Kein Token für Download-Anfrage.');
+    }
+    next();
+}, httpProxy(FILE_STORAGE_SERVICE_URL, {
+    proxyReqPathResolver: req => {
+        // ANPASSUNG: Verwende req.originalUrl und substring, um den /api/files-Präfix sicher zu entfernen.
+        // req.originalUrl ist z.B. /api/files/download/payslips/Nov2025/gehaltsabrechnung_91.pdf
+        const pathPrefixToRemove = '/api/files';
+        let resolvedPath = req.originalUrl;
+
+        if (resolvedPath.startsWith(pathPrefixToRemove)) {
+            resolvedPath = resolvedPath.substring(pathPrefixToRemove.length);
+        }
+        // Sicherstellen, dass der Pfad mit einem '/' beginnt
+        if (!resolvedPath.startsWith('/')) {
+            resolvedPath = '/' + resolvedPath;
+        }
+        
+        console.log(`[API Gateway Proxy Debug] Download Proxy Resolver: req.originalUrl: "${req.originalUrl}", Resolved Path for File Storage: "${resolvedPath}"`);
+        return resolvedPath;
+    },
+    proxyReqOptDecorator: setUserHeaders, // Stellt sicher, dass req.user (falls vorhanden) weitergeleitet wird
+    proxyErrorHandler: (err, res, next) => {
+        console.error(`[API Gateway Proxy Error] Fehler beim Weiterleiten von /api/files/download/*-Anfrage an ${FILE_STORAGE_SERVICE_URL}:`, err.code, err.message);
+        if (!res.headersSent) {
+            if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                res.status(503).json({ message: `File Storage Service nicht verfügbar oder nicht erreichbar: ${err.message}` });
+            } else {
+                res.status(500).json({ message: `Proxy-Fehler beim Abrufen von Dateidaten: ${err.message}` });
+            }
+        }
+    }
+}));
+
+
+// NEUER PROXY-BLOCK FÜR DEN FILE STORAGE SERVICE (generisch für alle anderen /api/files Routen)
+// DIESE REGEL SOLLTE NACH DER SPEZIFISCHEN DOWNLOAD-REGEL STEHEN
 app.use('/api/files', authenticateGateway, httpProxy(FILE_STORAGE_SERVICE_URL, {
     proxyReqPathResolver: req => {
-        const resolvedPath = req.url; 
-        console.log(`[API Gateway Proxy] /api/files Proxy aktiv: Leite ${req.originalUrl} weiter als ${resolvedPath} an ${FILE_STORAGE_SERVICE_URL}`);
+        // ANPASSUNG: Auch hier substring verwenden, um sicherzustellen, dass der /api/files-Präfix entfernt wird.
+        const pathPrefixToRemove = '/api/files';
+        let resolvedPath = req.originalUrl;
+
+        if (resolvedPath.startsWith(pathPrefixToRemove)) {
+            resolvedPath = resolvedPath.substring(pathPrefixToRemove.length);
+        }
+        // Sicherstellen, dass der Pfad mit einem '/' beginnt
+        if (!resolvedPath.startsWith('/')) {
+            resolvedPath = '/' + resolvedPath;
+        }
+        
+        console.log(`[API Gateway Proxy] /api/files generischer Proxy aktiv: req.originalUrl: "${req.originalUrl}", Weitergeleiteter Pfad: "${resolvedPath}" an ${FILE_STORAGE_SERVICE_URL}`);
         return resolvedPath;
     },
     proxyReqOptDecorator: setUserHeaders,

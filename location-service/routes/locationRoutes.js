@@ -18,6 +18,9 @@ router.get('/:id', (req, res, next) => { console.log(`[Route] GET /api/locations
 // Abrufen von Standorten nach Client-ID (für Manager, Admin, Disponent, Monteur)
 router.get('/client/:clientId', (req, res, next) => { console.log(`[Route] GET /api/locations/client/${req.params.clientId} - Standorte nach Client-ID abrufen`); next(); }, locationController.getLocationsByClientId);
 
+// NEUE ROUTE: Abrufen von Standorten nach Typ
+router.get('/type/:type', (req, res, next) => { console.log(`[Route] GET /api/locations/type/${req.params.type} - Standorte nach Typ abrufen`); next(); }, locationController.getLocationsByType);
+
 // Abrufen von Standorten mit Client-Infos für Dropdowns (z.B. Job-Erstellung) (für Manager, Admin, Disponent)
 router.get('/dropdown/clients', (req, res, next) => { console.log('[Route] GET /api/locations/dropdown/clients - Standorte für Dropdowns abrufen'); next(); }, locationController.getLocationsWithClientsForDropdown);
 

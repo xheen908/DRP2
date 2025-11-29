@@ -23,22 +23,33 @@ const { PayrollRun, Payslip } = defineModels(sequelize, DataTypes); // Rückgabe
 payrollController.init(PayrollRun, Payslip);
 
 
-// Authentifizierungs-Middleware (vereinfacht)
-const authenticateToken = (req, res, next) => {
+// Authentifizierungs-Middleware ANPASSUNG
+const extractUserAndRolesFromHeaders = (req, res, next) => {
+    const userId = req.headers['x-user-id'];
+    const userRolesHeader = req.headers['x-user-roles'];
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
-    if (token == null) {
-        console.warn("[Payroll Service] Authentifizierung: Kein Token gefunden.");
+    if (!userId) {
+        // Wenn keine User-ID vom Gateway vorhanden, wird die Anfrage nicht authentifiziert.
+        // Dies sollte normalerweise nicht passieren, wenn der API Gateway vorschaltet ist.
+        console.warn("[Payroll Service] Authentifizierung: Keine X-User-ID vom Gateway gefunden.");
         return res.sendStatus(401); // Unauthorized
     }
 
-    console.log("[Payroll Service] Token vorhanden (Vereinfachte Prüfung - kein JWT Verify)");
-    req.user = { id: 'mockUserId', role: 'Admin', jwtToken: token }; // Mock-User-Daten
+    req.user = { id: userId };
+    if (userRolesHeader) {
+        req.user.roles = userRolesHeader.split(',').map(role => role.trim());
+    } else {
+        req.user.roles = [];
+    }
+    req.user.jwtToken = token; // Den ursprünglichen JWT-Token weitergeben, falls der Service ihn benötigt
+
+    console.log(`[Payroll Service] Authentifizierter Benutzer (aus Gateway-Headern): ID=${req.user.id}, Rollen=${req.user.roles.join(', ')}`);
     next();
 };
 
-app.use(authenticateToken);
+app.use(extractUserAndRolesFromHeaders); // <-- Diese Middleware anwenden!
 
 // Statische Dateien für generierte PDFs servieren
 // Der 'uploads' Ordner wird vom Controller erstellt und befüllt.

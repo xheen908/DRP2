@@ -40,6 +40,11 @@ const Location = sequelize.define('Location', {
         type: DataTypes.INTEGER,
         allowNull: true,
     },
+    type: { // NEUES FELD HINZUGEFÜGT
+        type: DataTypes.STRING,
+        allowNull: true, // Oder false, wenn jeder Standort einen Typ haben muss
+        defaultValue: 'general', // Standardwert, falls kein Typ angegeben wird
+    },
     // Die folgenden Felder wurden entfernt, da sie in der Datenbank nicht vorhanden sind
     // und mit timestamps: false nicht von Sequelize verwaltet werden sollen.
     // created_at: {
