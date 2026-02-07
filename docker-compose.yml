@@ -11,7 +11,7 @@ services:
     container_name: drp_api_gateway
     restart: always
     ports:
-      - "3005:3000" 
+      - "3005:3000"
     volumes:
       - "./api-gateway:/app"
     environment:
@@ -37,7 +37,8 @@ services:
         condition: service_started
       client-service:
         condition: service_started
-      hr-service: # <-- NEU: Abhängigkeit vom HR Service
+      hr-service:
+        # <-- NEU: Abhängigkeit vom HR Service
         condition: service_started
       redis-cache:
         condition: service_healthy
@@ -56,7 +57,7 @@ services:
     container_name: drp_auth_service
     restart: always
     ports:
-      - "3001:3001" 
+      - "3001:3001"
     volumes:
       - "./auth-service:/app"
     environment:
@@ -78,7 +79,8 @@ services:
   # --------------------------------------------------------------------------
   # HR Microservice - Verwaltung aller Personal-bezogenen Daten (NEU)
   # --------------------------------------------------------------------------
-  hr-service: # <-- NEUER SERVICE-BLOCK FÜR HR-SERVICE
+  hr-service:
+    # <-- NEUER SERVICE-BLOCK FÜR HR-SERVICE
     build:
       context: ./hr-service
       dockerfile: Dockerfile
@@ -100,7 +102,8 @@ services:
     depends_on:
       mysql-db:
         condition: service_healthy
-      auth-service: # HR Service hängt vom Auth Service ab
+      auth-service:
+        # HR Service hängt vom Auth Service ab
         condition: service_started
       redis-cache:
         condition: service_healthy
@@ -117,7 +120,7 @@ services:
     container_name: drp_job_service
     restart: always
     ports:
-      - "3002:3002" 
+      - "3002:3002"
     volumes:
       - "./job-service:/app"
     environment:
@@ -191,7 +194,7 @@ services:
     container_name: drp_location_service
     restart: always
     ports:
-      - "3004:3004" 
+      - "3004:3004"
     volumes:
       - "./location-service:/app"
     environment:
@@ -220,7 +223,7 @@ services:
     container_name: drp_client_service
     restart: always
     ports:
-      - "3006:3006" 
+      - "3006:3006"
     volumes:
       - "./client-service:/app"
     environment:
@@ -251,7 +254,7 @@ services:
     container_name: drp_frontend_ejs_service
     restart: always
     ports:
-      - "3007:3007" 
+      - "3007:3007"
     volumes:
       - "./frontend-ejs-service:/app"
     environment:
@@ -265,7 +268,8 @@ services:
     networks:
       - drp_network
 
-  payroll-service: # <-- NEUER SERVICE-BLOCK FÜR PAYROLL-SERVICE
+  payroll-service:
+    # <-- NEUER SERVICE-BLOCK FÜR PAYROLL-SERVICE
     build:
       context: ./payroll-service
       dockerfile: Dockerfile
@@ -284,17 +288,21 @@ services:
       DB_NAME: payroll_db # Eigene Datenbank für Payroll Service
       HR_SERVICE_URL: http://hr-service:3008 # Für interne Kommunikation mit HR Service
       AUTH_SERVICE_URL: http://auth-service:3001 # Für interne Kommunikation mit Auth Service
+      TAX_SERVICE_URL: http://tax-engine:8080 # Für interne Kommunikation mit Tax Engine
     depends_on:
       mysql-db:
         condition: service_healthy
-      hr-service: # Payroll Service hängt vom HR Service ab
+      hr-service:
+        # Payroll Service hängt vom HR Service ab
         condition: service_started
-      auth-service: # Payroll Service hängt vom Auth Service ab
+      auth-service:
+        # Payroll Service hängt vom Auth Service ab
         condition: service_started
     networks:
       - drp_network
 
-  filestorage-service: # NEUER SERVICE-BLOCK FÜR FILE STORAGE SERVICE
+  filestorage-service:
+    # NEUER SERVICE-BLOCK FÜR FILE STORAGE SERVICE
     build:
       context: ./filestorage-service
       dockerfile: Dockerfile
@@ -318,31 +326,44 @@ services:
         condition: service_started
 
   # --------------------------------------------------------------------------
+  # Tax Engine Microservice (C++)
+  # --------------------------------------------------------------------------
+  tax-engine:
+    build:
+      context: ./tax-engine-cpp
+      dockerfile: Dockerfile
+    container_name: drp_tax_engine
+    restart: always
+    ports:
+      - "3011:8080"
+    networks:
+      - drp_network
+
+  # --------------------------------------------------------------------------
   # Zentrale MySQL Datenbank-Dienst (ein Container, mehrere Datenbanken)
   # --------------------------------------------------------------------------
   mysql-db:
-        image: mysql:8.0
-        container_name: drp_mysql_db_central
-        restart: always
-        environment:
-          MYSQL_ROOT_PASSWORD: ${DB_PASS}
-          MYSQL_USER: ${DB_USER}
-          MYSQL_PASSWORD: ${DB_PASS}
-          MYSQL_MULTIPLE_DATABASES: "auth_db,job_db,shift_db,location_db,client_db,hr_db" # <-- hr_db HINZUGEFÜGT
-        volumes:
-          - mysql_data:/var/lib/mysql
-          - ./init-all-dbs.sql:/docker-entrypoint-initdb.d/init-all-dbs.sql
-        healthcheck:
-          test: ["CMD-SHELL", "mysqladmin ping -h localhost -u$$MYSQL_USER -p$$MYSQL_PASSWORD"]
-          interval: 10s
-          timeout: 5s
-          retries: 5
-          start_period: 30s
-        networks:
-          - drp_network
-        ports:
-          - "3309:3306"
-
+    image: mysql:8.0
+    container_name: drp_mysql_db_central
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASS}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+      MYSQL_MULTIPLE_DATABASES: "auth_db,job_db,shift_db,location_db,client_db,hr_db" # <-- hr_db HINZUGEFÜGT
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init-all-dbs.sql:/docker-entrypoint-initdb.d/init-all-dbs.sql
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u$$MYSQL_USER -p$$MYSQL_PASSWORD" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - drp_network
+    ports:
+      - "3309:3306"
 
   # --------------------------------------------------------------------------
   # Redis Cache/Broker-Dienst (zentral belassen)
@@ -354,7 +375,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5

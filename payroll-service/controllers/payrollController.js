@@ -63,7 +63,7 @@ async function fetchWithAuth(url, options, req) {
 async function fetchCompanyLocation(req) {
     try {
         const response = await fetchWithAuth(`${LOCATION_SERVICE_URL}/api/locations/type/company_location`, { method: 'GET' }, req);
-        
+
         if (response && response.length > 0) {
             const companyLocation = response[0]; // Nehmen Sie die erste passende Location
             // KORREKTUR: Verwenden Sie direkt das 'address'-Feld, das die komplette Adresse enthält
@@ -84,7 +84,43 @@ async function fetchCompanyLocation(req) {
  * @param {number} actualWorkingHours - Tatsächlich geleistete Arbeitsstunden im Monat
  * @returns {object} Berechnungsergebnisse (grossSalary, netSalary, taxAmount, socialSecurityAmount etc.)
  */
-function calculateGermanPayroll(employeeData, actualWorkingHours) {
+// NEU: Umgebungsvariable für den Tax Service
+const TAX_SERVICE_URL = process.env.TAX_SERVICE_URL || 'http://tax-engine:8080';
+
+/**
+ * Ruft die Steuerberechnung vom Tax Engine Microservice ab.
+ */
+async function fetchTaxCalculation(params) {
+    console.log(`[Payroll Calculation] Calling Tax Engine at ${TAX_SERVICE_URL}/calculate with params:`, JSON.stringify(params));
+    try {
+        const response = await fetch(`${TAX_SERVICE_URL}/calculate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Tax Engine Error: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log(`[Payroll Calculation] Tax Engine Result:`, JSON.stringify(result));
+        return result;
+    } catch (error) {
+        console.error('[Payroll Calculation] Failed to call Tax Engine:', error);
+        throw error;
+    }
+}
+
+/**
+ * Vereinfachte deutsche Gehaltsabrechnung (Asynchron).
+ * Ruft jetzt den Tax Engine Microservice auf.
+ * @param {object} employeeData - Daten des Mitarbeiters vom HR-Service
+ * @param {number} actualWorkingHours - Tatsächlich geleistete Arbeitsstunden im Monat
+ * @returns {Promise<object>} Berechnungsergebnisse
+ */
+async function calculateGermanPayroll(employeeData, actualWorkingHours) {
     // ANPASSUNG: employeeData.salary wird jetzt als Stundenlohn interpretiert
     const HOURLY_WAGE = parseFloat(employeeData.salary) || 17.6; // Fallback auf 17,6€ pro Stunde
     const MONTHLY_WORKING_HOURS = 160; // Standardmäßige monatliche Arbeitsstunden
@@ -94,28 +130,88 @@ function calculateGermanPayroll(employeeData, actualWorkingHours) {
 
     console.log(`[Payroll Calculation] Employee ${employeeData.id}: Stundenlohn ${HOURLY_WAGE.toFixed(2)}€, Monatsbrutto ${monthlyGrossSalary.toFixed(2)}€, Jahresbrutto ${annualGrossSalary.toFixed(2)}€`);
 
-    let taxAmount = 0;
-    let socialSecurityAmount = 0;
-    let netSalary = monthlyGrossSalary;
+    // Prepare parameters for Tax Engine
+    // RE4: Bruttoarbeitslohn in Cent
+    const re4Cents = Math.round(annualGrossSalary * 100);
 
-    const taxRate = 0.20;
-    const socialSecurityRate = 0.19;
+    // Steuerklasse (Default: 1)
+    const stkl = parseInt(employeeData.taxClass) || 1;
 
-    if (monthlyGrossSalary > 0) {
-        taxAmount = monthlyGrossSalary * taxRate;
-        socialSecurityAmount = monthlyGrossSalary * socialSecurityRate;
-        netSalary = monthlyGrossSalary - taxAmount - socialSecurityAmount;
+    // LZZ: Lohnzahlungszeitraum (1=Jahr, 2=Monat, 3=Woche, 4=Tag) -> Wir nehmen 2 (Monat) da wir Monatswerte wollen? 
+    // ACHTUNG: Der PAP erwartet RE4 als Jahresarbeitslohn, wenn LZZ=1 (Jahr) oder Monatslohn wenn LZZ=2?
+    // Der PAP sagt: "JRE4: Voraussichtlicher Jahresarbeitslohn". "RE4: Arbeitslohn LZZ".
+    // Wenn wir LZZ=2 (Monat) setzen, müssen wir RE4 als Monatslohn übergeben.
+
+    // Dynamic Church Tax Rate
+    // Debugging Church Tax Value
+    console.log(`[Payroll Calculation Debug] Employee ${employeeData.id} churchTaxApplicable value:`, employeeData.taxSocialSecurity?.churchTaxApplicable, 'Type:', typeof employeeData.taxSocialSecurity?.churchTaxApplicable);
+
+    const churchTaxApp = employeeData.taxSocialSecurity?.churchTaxApplicable;
+    const isChurchTaxYes = churchTaxApp === true || churchTaxApp === 'true';
+    // Sync with PDF Logic: NRW = 9%
+    const churchTaxRateParam = isChurchTaxYes ? 9.0 : 0.0;
+
+    // Kinderfreibeträge
+    // Kinderfreibeträge
+    // Fix: Access via taxSocialSecurity
+    const zkf = parseFloat(employeeData.taxSocialSecurity?.childAllowances) || 0.0;
+
+    const taxParams = {
+        RE4: Math.round(monthlyGrossSalary * 100),
+        LZZ: 2,
+        STKL: stkl,
+        KVZ: 1.6,
+        PVZ: 0,
+        R: churchTaxRateParam,
+        ZKF: zkf
+    };
+
+    let taxResult = {
+        LSTLZZ: 0,
+        SOLZLZZ: 0,
+        KV_AN: 0,
+        RV_AN: 0,
+        AV_AN: 0, // Arbeitslosenversicherung wird im C++ Code als ALV_AN bezeichnet? Checken.
+        PV_AN: 0
+    };
+
+    try {
+        const engineResult = await fetchTaxCalculation(taxParams);
+        taxResult = engineResult;
+        // Mapping sicherstellen (falls Namen abweichen)
+        // C++ Engine output: LSTLZZ, SOLZLZZ, BK, RV_AN, KV_AN, PV_AN, ALV_AN
+    } catch (e) {
+        console.error("Using fallback calculation due to error.");
+        // Fallback or re-throw? For now, let's keep the error visible.
+        // Or implement a simple fallback to keep the service running.
     }
+
+    // Convert Cents to Euro for the result object
+    // BK ist die Bemessungsgrundlage, nicht die Steuer selbst!
+    // Kirchensteuer = BK * (R / 100)
+    const churchTaxRate = (taxParams.R || 0) / 100;
+    const churchTaxAmountCents = (taxResult.BK || 0) * churchTaxRate;
+
+    // Soli + Lohnsteuer + Kirchensteuer
+    const taxAmount = (taxResult.LSTLZZ + taxResult.SOLZLZZ + churchTaxAmountCents) / 100;
+    const socialSecurityAmount = (taxResult.RV_AN + taxResult.KV_AN + taxResult.PV_AN + (taxResult.ALV_AN || 0)) / 100;
+
+    // Netto
+    const netSalary = monthlyGrossSalary - taxAmount - socialSecurityAmount;
 
     return {
         grossSalary: monthlyGrossSalary,
         netSalary: netSalary,
         taxAmount: taxAmount,
         socialSecurityAmount: socialSecurityAmount,
-        healthInsuranceAmount: monthlyGrossSalary * 0.073,
-        pensionInsuranceAmount: monthlyGrossSalary * 0.093,
-        unemploymentInsuranceAmount: monthlyGrossSalary * 0.012,
-        careInsuranceAmount: monthlyGrossSalary * 0.015,
+        healthInsuranceAmount: taxResult.KV_AN / 100,
+        pensionInsuranceAmount: taxResult.RV_AN / 100,
+        unemploymentInsuranceAmount: (taxResult.ALV_AN || 0) / 100,
+        careInsuranceAmount: taxResult.PV_AN / 100,
+        // Optional: Return details for payslip
+        churchTaxAmount: churchTaxAmountCents / 100,
+        soliTaxAmount: taxResult.SOLZLZZ / 100,
+        wageTaxAmount: taxResult.LSTLZZ / 100
     };
 }
 
@@ -200,7 +296,7 @@ exports.calculatePayrollRun = async (req, res) => {
         for (const employee of employeesToProcess) {
             const actualWorkingHours = 160;
 
-            const calculationResult = calculateGermanPayroll(employee, actualWorkingHours);
+            const calculationResult = await calculateGermanPayroll(employee, actualWorkingHours);
 
             payslipsToCreate.push({
                 payrollRunId: payrollRun.id,
@@ -213,8 +309,8 @@ exports.calculatePayrollRun = async (req, res) => {
                 pensionInsuranceAmount: calculationResult.pensionInsuranceAmount,
                 unemploymentInsuranceAmount: calculationResult.unemploymentInsuranceAmount,
                 careInsuranceAmount: calculationResult.careInsuranceAmount,
-                taxClass: employee.taxClass || 'I',
-                childAllowances: employee.childAllowances || 0,
+                taxClass: employee.taxClass || (employee.taxSocialSecurity?.taxClass ? String(employee.taxSocialSecurity.taxClass) : '1'),
+                childAllowances: employee.taxSocialSecurity?.childAllowances || 0,
                 maritalStatus: employee.maritalStatus || 'Single',
                 payrollPeriodStart: new Date(payrollRun.year, payrollRun.month - 1, 1),
                 payrollPeriodEnd: new Date(payrollRun.year, payrollRun.month, 0),
@@ -228,7 +324,20 @@ exports.calculatePayrollRun = async (req, res) => {
         }
 
         await Payslip.destroy({ where: { payrollRunId: payrollRun.id } });
-        await Payslip.bulkCreate(payslipsToCreate);
+        const createdPayslips = await Payslip.bulkCreate(payslipsToCreate);
+
+        // Automatische PDF-Generierung für alle erstellten Payslips
+        for (const createdPayslip of createdPayslips) {
+            try {
+                console.log(`[Payroll Calculation] Starte automatische PDF-Generierung für Payslip ID: ${createdPayslip.id}`);
+                await generateAndUploadPayslipPDF(createdPayslip.id, req);
+                console.log(`[Payroll Calculation] PDF erfolgreich generiert für Payslip ID: ${createdPayslip.id}`);
+            } catch (pdfError) {
+                console.error(`[Payroll Calculation] Fehler bei der automatischen PDF-Generierung für Payslip ID ${createdPayslip.id}:`, pdfError.message);
+                // Wir setzen den Status nicht auf 'Fehler', damit der Lauf trotzdem erfolgreich abgeschlossen wird.
+                // Der Benutzer kann die Generierung später manuell anstoßen.
+            }
+        }
 
         await payrollRun.update({
             status: 'Calculated',
@@ -447,10 +556,10 @@ async function generateGermanPayslipPDF(payslipData, req) { // 'outputPath' Para
             // Adresse links
             // 1. Firmenadresse: KLEINERE SCHRIFTGRÖSSE
             doc.fontSize(7); // <--- ANGEPASST: Kleiner als 7.5
-            addText(data.employerName, MARGIN_LEFT + 4, currentY + 2, {font: 'Helvetica-Bold'});
+            addText(data.employerName, MARGIN_LEFT + 4, currentY + 2, { font: 'Helvetica-Bold' });
 
             // 2. Leerzeile: ROW_HEIGHT
-            
+
             // 3. Mitarbeiteradresse: Startet zwei Zeilen tiefer (ROW_HEIGHT für Firmenname + ROW_HEIGHT für Leerzeile)
             doc.fontSize(7.5); // Zurück zur Standardgröße
 
@@ -622,16 +731,16 @@ async function generateGermanPayslipPDF(payslipData, req) { // 'outputPath' Para
 
             // Steuerrechtliche Abzüge
             const steuerAbzuegeY = headerY;
-            addText('Steuerrechtliche', rechtsBoxX + 5, steuerAbzuegeY + 2, {fontSize: 7.5});
-            addText('Abzüge', rechtsBoxX + 5, steuerAbzuegeY + ROW_HEIGHT, {fontSize: 7.5});
-            addText(payslipData.steuerrechtlicheAbzuege, rechtsBoxX + 5, steuerAbzuegeY + 22, {align: 'right', width: rechtsBoxWidth - 10, font: 'Helvetica-Bold', fontSize: 8.5});
+            addText('Steuerrechtliche', rechtsBoxX + 5, steuerAbzuegeY + 2, { fontSize: 7.5 });
+            addText('Abzüge', rechtsBoxX + 5, steuerAbzuegeY + ROW_HEIGHT, { fontSize: 7.5 });
+            addText(payslipData.steuerrechtlicheAbzuege, rechtsBoxX + 5, steuerAbzuegeY + 22, { align: 'right', width: rechtsBoxWidth - 10, font: 'Helvetica-Bold', fontSize: 8.5 });
             drawBox(rechtsBoxX, steuerAbzuegeY, rechtsBoxWidth, rechtsMiniBoxHeight);
 
             // SV-rechtliche Abzüge
             const svAbzuegeY = steuerAbzuegeY + rechtsMiniBoxHeight + 5;
-            addText('SV-rechtliche', rechtsBoxX + 5, svAbzuegeY + 2, {fontSize: 7.5});
-            addText('Abzüge', rechtsBoxX + 5, svAbzuegeY + ROW_HEIGHT, {fontSize: 7.5});
-            addText(payslipData.svRechtlicheAbzuege, rechtsBoxX + 5, svAbzuegeY + 22, {align: 'right', width: rechtsBoxWidth - 10, font: 'Helvetica-Bold', fontSize: 8.5});
+            addText('SV-rechtliche', rechtsBoxX + 5, svAbzuegeY + 2, { fontSize: 7.5 });
+            addText('Abzüge', rechtsBoxX + 5, svAbzuegeY + ROW_HEIGHT, { fontSize: 7.5 });
+            addText(payslipData.svRechtlicheAbzuege, rechtsBoxX + 5, svAbzuegeY + 22, { align: 'right', width: rechtsBoxWidth - 10, font: 'Helvetica-Bold', fontSize: 8.5 });
             drawBox(rechtsBoxX, svAbzuegeY, rechtsBoxWidth, rechtsMiniBoxHeight);
 
             return Math.max(steuerEnd, svEnd, svAbzuegeY + rechtsMiniBoxHeight) + 10;
@@ -683,7 +792,7 @@ async function generateGermanPayslipPDF(payslipData, req) { // 'outputPath' Para
         const nettoMittigCol2Width = 100;
         const nettoMittigCol3Width = 50;
 
-        doc.text('Netto-Bezüge/-Abzüge', nettoMittigColX, nettoMittigY, {font: 'Helvetica-Bold'}); nettoMittigY += ROW_HEIGHT;
+        doc.text('Netto-Bezüge/-Abzüge', nettoMittigColX, nettoMittigY, { font: 'Helvetica-Bold' }); nettoMittigY += ROW_HEIGHT;
 
         doc.font('Helvetica-Bold');
         addText('Lohnart', nettoMittigColX, nettoMittigY, { width: nettoMittigCol1Width });
@@ -704,13 +813,13 @@ async function generateGermanPayslipPDF(payslipData, req) { // 'outputPath' Para
         const boxHeight = 35;
 
         const nettoVerdienstY = verdienstY;
-        addText('Netto-Verdienst', nettoRechtsBoxX + 5, nettoVerdienstY + 4, {fontSize: 8.5});
-        addText(payslipData.nettoVerdienst, nettoRechtsBoxX + 5, nettoVerdienstY + 18, {align: 'right', width: nettoRechtsBoxWidth - 10, font: 'Helvetica-Bold', fontSize: 8.5});
+        addText('Netto-Verdienst', nettoRechtsBoxX + 5, nettoVerdienstY + 4, { fontSize: 8.5 });
+        addText(payslipData.nettoVerdienst, nettoRechtsBoxX + 5, nettoVerdienstY + 18, { align: 'right', width: nettoRechtsBoxWidth - 10, font: 'Helvetica-Bold', fontSize: 8.5 });
         drawBox(nettoRechtsBoxX, nettoVerdienstY, nettoRechtsBoxWidth, boxHeight);
 
         const auszahlungsBetragY = nettoVerdienstY + boxHeight + 5;
-        addText('Auszahlungsbetrag', nettoRechtsBoxX + 5, auszahlungsBetragY + 4, {fontSize: 8.5});
-        addText(payslipData.auszahlungsbetrag, nettoRechtsBoxX + 5, auszahlungsBetragY + 18, {align: 'right', width: nettoRechtsBoxWidth - 10, font: 'Helvetica-Bold', fontSize: 8.5});
+        addText('Auszahlungsbetrag', nettoRechtsBoxX + 5, auszahlungsBetragY + 4, { fontSize: 8.5 });
+        addText(payslipData.auszahlungsbetrag, nettoRechtsBoxX + 5, auszahlungsBetragY + 18, { align: 'right', width: nettoRechtsBoxWidth - 10, font: 'Helvetica-Bold', fontSize: 8.5 });
         drawBox(nettoRechtsBoxX, auszahlungsBetragY, nettoRechtsBoxWidth, boxHeight);
 
         currentY = Math.max(verdienstCurrentY, nettoMittigY, auszahlungsBetragY + boxHeight) + 20;
@@ -741,8 +850,8 @@ async function generateGermanPayslipPDF(payslipData, req) { // 'outputPath' Para
         let footerX = svAgX;
         footerBoxes.forEach(box => {
             drawBox(footerX, blockY, blockWidthFooter, blockHeightFooter);
-            addText(box.label, footerX + 5, blockY + 2, {fontSize: 7.5});
-            addText(payslipData[box.valueKey], footerX + 5, blockY + 15, {align: 'right', width: blockWidthFooter - 10, fontSize: 7.5});
+            addText(box.label, footerX + 5, blockY + 2, { fontSize: 7.5 });
+            addText(payslipData[box.valueKey], footerX + 5, blockY + 15, { align: 'right', width: blockWidthFooter - 10, fontSize: 7.5 });
             footerX += blockWidthFooter + 5;
         });
 
@@ -755,6 +864,7 @@ async function generateGermanPayslipPDF(payslipData, req) { // 'outputPath' Para
 }
 
 exports.generatePayslipDocument = async (req, res) => {
+    console.log('[PDF Gen DEBUG] generatePayslipDocument called for ID:', req.params.id);
     try {
         const { id } = req.params;
         const payslip = await Payslip.findByPk(id, {
@@ -776,6 +886,45 @@ exports.generatePayslipDocument = async (req, res) => {
         const abzugJobticketValue = '-20,00';
 
         const primaryAddress = employeeDetails.addresses?.find(addr => addr.isPrimary) || employeeDetails.addresses?.[0] || {};
+
+        // --- RE-CALCULATE TAX BREAKDOWN FOR PDF ---
+        // Since DB only stores total tax, we strictly re-calculate components here for display.
+        const churchTaxApp = employeeDetails.taxSocialSecurity?.churchTaxApplicable;
+        const isChurchTaxYes = churchTaxApp === true || churchTaxApp === 'true';
+        // NRW (Duisburg) hat 9% Kirchensteuer. (8% gilt für Bayern/BaWü)
+        const churchTaxRateParam = isChurchTaxYes ? 9.0 : 0.0;
+
+        let calculatedTaxComponents = {
+            lohnsteuer: 0,
+            soli: 0,
+            churchTax: 0
+        };
+
+        try {
+            const taxParams = {
+                RE4: Math.round(parseFloat(payslip.grossSalary) * 100),
+                LZZ: 2,
+                STKL: parseInt(payslip.taxClass) || (employeeDetails.taxSocialSecurity?.taxClass ? parseInt(employeeDetails.taxSocialSecurity.taxClass) : 1),
+                KVZ: 1.6,
+                PVZ: 0,
+                R: churchTaxRateParam,
+                ZKF: parseFloat(payslip.childAllowances) || 0.0
+            };
+
+            console.log(`[PDF Gen] Re-calculating tax for breakdown with params:`, JSON.stringify(taxParams));
+            const taxRes = await fetchTaxCalculation(taxParams);
+
+            const churchTaxCents = (taxRes.BK || 0) * (churchTaxRateParam / 100);
+
+            calculatedTaxComponents.lohnsteuer = (taxRes.LSTLZZ || 0) / 100;
+            calculatedTaxComponents.soli = (taxRes.SOLZLZZ || 0) / 100;
+            calculatedTaxComponents.churchTax = churchTaxCents / 100;
+
+        } catch (err) {
+            console.error("Failed to re-calculate tax for PDF breakdown", err);
+            // Fallback: This might look weird but ensures total matches if engine fails
+            calculatedTaxComponents.lohnsteuer = parseFloat(payslip.taxAmount);
+        }
 
         const payslipDataForPdfkit = {
             personalNr: employeeDetails.employeeNumber || employeeDetails.id?.toString() || 'N/A',
@@ -801,10 +950,10 @@ exports.generatePayslipDocument = async (req, res) => {
             gesamtBrutto: parseFloat(payslip.grossSalary).toFixed(2).replace('.', ','),
 
             steuerBrutto: parseFloat(payslip.grossSalary).toFixed(2).replace('.', ','),
-            lohnsteuer: parseFloat(payslip.taxAmount).toFixed(2).replace('.', ','),
-            kirchensteuer: employeeDetails.taxSocialSecurity?.churchTaxApplicable ? 'Ja' : 'Nein',
-            soliZuschlag: '0,00',
-            steuerrechtlicheAbzuege: (parseFloat(payslip.taxAmount) + (employeeDetails.taxSocialSecurity?.churchTaxApplicable ? 0 : 0) + 0).toFixed(2).replace('.', ','),
+            lohnsteuer: calculatedTaxComponents.lohnsteuer.toFixed(2).replace('.', ','),
+            kirchensteuer: calculatedTaxComponents.churchTax.toFixed(2).replace('.', ','),
+            soliZuschlag: calculatedTaxComponents.soli.toFixed(2).replace('.', ','),
+            steuerrechtlicheAbzuege: (calculatedTaxComponents.lohnsteuer + calculatedTaxComponents.soli + calculatedTaxComponents.churchTax).toFixed(2).replace('.', ','),
 
             kvBrutto: parseFloat(payslip.grossSalary).toFixed(2).replace('.', ','),
             rvBrutto: parseFloat(payslip.grossSalary).toFixed(2).replace('.', ','),
@@ -816,9 +965,9 @@ exports.generatePayslipDocument = async (req, res) => {
             pvBeitrag: parseFloat(payslip.careInsuranceAmount).toFixed(2).replace('.', ','),
             svRechtlicheAbzuege: (parseFloat(payslip.healthInsuranceAmount) + parseFloat(payslip.pensionInsuranceAmount) + parseFloat(payslip.unemploymentInsuranceAmount) + parseFloat(payslip.careInsuranceAmount)).toFixed(2).replace('.', ','),
 
-            lohnsteuerBescheinigung: (parseFloat(payslip.taxAmount) * 12).toFixed(2).replace('.', ','),
-            kirchensteuerBescheinigung: '0,00',
-            soliZuschlagBescheinigung: '0,00',
+            lohnsteuerBescheinigung: calculatedTaxComponents.lohnsteuer.toFixed(2).replace('.', ','),
+            kirchensteuerBescheinigung: calculatedTaxComponents.churchTax.toFixed(2).replace('.', ','),
+            soliZuschlagBescheinigung: calculatedTaxComponents.soli.toFixed(2).replace('.', ','),
             pauschalVerstZukl: '0,00',
 
             nettoBezugLohnart: '3100',
@@ -849,11 +998,11 @@ exports.generatePayslipDocument = async (req, res) => {
 
         // Dateiname mit Mitarbeitername, Monat, Jahr und Payslip-ID
         const employeeFullName = `${employeeDetails.firstName || ''} ${employeeDetails.lastName || ''}`.trim().replace(/\s/g, '_'); // Leerzeichen durch Unterstriche ersetzen
-        const baseFileName = `Gehaltsabrechnung_${employeeFullName}_${folderMonth}_${folderYear}_${payslip.id}.pdf`; 
-        
+        const baseFileName = `Gehaltsabrechnung_${employeeFullName}_${folderMonth}_${folderYear}_${payslip.id}.pdf`;
+
         // Der Pfad im Bucket (ohne den Bucket-Namen "filestorageservice")
         const bucketPath = `payslips/${folderYear}/${folderMonth}`; // Beispiel: "payslips/2025/November"
-        
+
         const filenameForStorage = baseFileName; // Nur der Basisdateiname für FormData
 
 

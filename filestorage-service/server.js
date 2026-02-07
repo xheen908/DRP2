@@ -48,7 +48,7 @@ const rclonePath = `:s3:${RCLONE_BUCKET_NAME}`;
 
 // Basisargumente für rclone, die S3-Konfiguration übergeben
 const rcloneBaseArgs = [
-  '--config', '', // Wichtig: Weist rclone an, KEINE Konfigurationsdatei zu verwenden
+  '--config', '/dev/null', // Wichtig: Weist rclone an, KEINE Konfigurationsdatei zu verwenden
   '--s3-access-key-id', S3_ACCESS_KEY_ID,
   '--s3-secret-access-key', S3_SECRET_ACCESS_KEY,
   '--s3-endpoint', S3_ENDPOINT,
@@ -121,8 +121,8 @@ app.post('/upload/:targetFolder(*)', authorize(['admin', 'Manager']), upload.sin
   // da der Bucket-Namen bereits im rclonePath enthalten ist.
   // Dies verhindert eine doppelte Pfadangabe im Bucket.
   if (RCLONE_BUCKET_NAME && dynamicTargetPath.startsWith(RCLONE_BUCKET_NAME + '/')) {
-      dynamicTargetPath = dynamicTargetPath.substring(RCLONE_BUCKET_NAME.length + 1);
-      console.log(`[File Storage Service Debug] Entfernte doppelten Bucket-Namen aus targetFolder. Neuer dynamicTargetPath: ${dynamicTargetPath}`);
+    dynamicTargetPath = dynamicTargetPath.substring(RCLONE_BUCKET_NAME.length + 1);
+    console.log(`[File Storage Service Debug] Entfernte doppelten Bucket-Namen aus targetFolder. Neuer dynamicTargetPath: ${dynamicTargetPath}`);
   }
 
 
@@ -130,7 +130,7 @@ app.post('/upload/:targetFolder(*)', authorize(['admin', 'Manager']), upload.sin
   // Der originalFileName sollte jetzt nur der Dateiname ohne Pfad sein,
   // da payroll-service so angepasst wurde.
   const remoteFileName = dynamicTargetPath ? `${dynamicTargetPath}/${originalFileName}` : originalFileName;
-  
+
   console.log(`[File Storage Service Debug] Erhaltener originalname von Multer: ${req.file.originalname}`);
   console.log(`[File Storage Service Debug] Endgültiger Dateiname für Remote (remoteFileName): ${remoteFileName}`);
   console.log(`[File Storage Service Debug] Rclone Bucket Pfad: ${rclonePath}`);
@@ -187,8 +187,8 @@ app.post('/upload/:targetFolder(*)', authorize(['admin', 'Manager']), upload.sin
 app.get('/download/:filename(*)', authorize([]), (req, res) => { // Leeres Array bedeutet: nur authentifiziert
   const remoteFileName = req.params.filename; // filename kann hier auch einen Pfad enthalten, z.B. "folder/file.pdf"
   // localDownloadPath sollte nur der Dateiname sein, da wir ihn in einem lokalen Ordner speichern
-  const localFileName = path.basename(remoteFileName); 
-  const localDownloadPath = path.join('./downloads', localFileName); 
+  const localFileName = path.basename(remoteFileName);
+  const localDownloadPath = path.join('./downloads', localFileName);
 
   // Sicherstellen, dass das Download-Verzeichnis existiert
   if (!fs.existsSync('./downloads')) {
@@ -234,7 +234,7 @@ app.get('/download/:filename(*)', authorize([]), (req, res) => { // Leeres Array
     } else {
       // Wenn rclone einen Fehler zurückgibt, löschen wir die (möglicherweise unvollständige) lokale Datei und senden einen Fehler.
       fs.unlink(localDownloadPath, (unlinkErr) => {
-          if (unlinkErr) console.error('Fehler beim Löschen der lokalen Datei nach rclone Fehler:', unlinkErr);
+        if (unlinkErr) console.error('Fehler beim Löschen der lokalen Datei nach rclone Fehler:', unlinkErr);
       });
       res.status(500).send(`Fehler beim Herunterladen der Datei mit rclone. Exit Code: ${code}`);
     }
