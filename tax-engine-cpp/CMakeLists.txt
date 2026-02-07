@@ -1,22 +1,32 @@
 cmake_minimum_required(VERSION 3.10)
-project(TaxEngineCpp)
+project(tax-engine-cpp)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Include directories
 include_directories(include)
 
-# PAP Sources
+# Compile all extracted PAP source files
 set(PAP_SOURCES
-    src/pap/Lohnsteuer2026_Core.cpp
-    src/pap/Lohnsteuer2026_LSTLZZ.cpp
-    src/pap/Lohnsteuer2026_SOLZLZZ.cpp
-    src/pap/Lohnsteuer2026_SONSTB.cpp
-    src/pap/Lohnsteuer2026_SV.cpp
+    src/pap2026/berechnen.cpp
+    src/pap2026/MPARA.cpp
+    src/pap2026/MRE4JL.cpp
+    src/pap2026/MRE4.cpp
+    src/pap2026/MRE4ALTE.cpp
+    src/pap2026/MRE4ABZ.cpp
+    src/pap2026/MBERECH.cpp
+    src/pap2026/UPVSP.cpp
+    src/pap2026/UPMLST.cpp
+    src/pap2026/UPTAB26.cpp
+    src/pap2026/MST5_6.cpp
+    src/pap2026/UP5_6.cpp
+    src/pap2026/UPLSTLZZ.cpp
+    src/pap2026/UPANTEIL.cpp
+    src/pap2026/MSOLZ.cpp
+    src/pap2026/MSOLZSTS.cpp
+    src/pap2026/MSONST.cpp
+    src/pap2026/berechneSV.cpp
 )
 
-add_executable(tax_engine src/main.cpp ${PAP_SOURCES})
-
-# Link threads library (needed for httplib)
-find_package(Threads REQUIRED)
-target_link_libraries(tax_engine Threads::Threads)
+# Main executable
+add_executable(tax-engine src/main.cpp ${PAP_SOURCES})

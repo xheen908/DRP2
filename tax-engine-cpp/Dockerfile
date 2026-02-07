@@ -25,10 +25,10 @@ RUN apk add --no-cache libstdc++
 WORKDIR /app
 
 # Copy the executable from the builder stage
-COPY --from=builder /app/build/tax_engine .
+COPY --from=builder /app/build/tax-engine .
 
 # Expose the port
 EXPOSE 8080
 
 # Run the application
-CMD ["./tax_engine"]
+CMD ["./tax-engine"]
