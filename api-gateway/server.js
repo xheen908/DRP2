@@ -3,7 +3,6 @@ const express = require('express');
 const httpProxy = require('express-http-proxy');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const helmet = require('helmet');
 const morgan = require('morgan');
 const jwt = require('jsonwebtoken');
 
@@ -34,96 +33,108 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-// --- AUTH MIDDLEWARE ---
-
 const gatewayAuth = (req, res, next) => {
     const token = req.cookies.jwt || req.headers['authorization']?.split(' ')[1];
     
-    const publicPaths = ['/', '/login', '/api/auth/login', '/api/auth/register'];
+    // Wir nutzen req.originalUrl, da req.path durch app.use('/prefix') verkürzt wird
+    const url = req.originalUrl.split('?')[0];
+    
+    const publicPaths = ['/login', '/api/auth/login', '/api/auth/register', '/api/auth/logout'];
     const publicPrefixes = ['/public', '/uploads'];
-    const isPublic = publicPaths.includes(req.path) || publicPrefixes.some(p => req.path.startsWith(p));
+    const isPublic = publicPaths.includes(url) || publicPrefixes.some(p => url.startsWith(p));
 
-    if (!token) {
-        if (isPublic) return next();
-        if (req.path.startsWith('/api')) return res.status(401).json({ message: 'Auth required' });
+    // Token Prüfung
+    if (token) {
+        try {
+            req.user = jwt.verify(token, JWT_SECRET);
+        } catch (err) {
+            console.error(`[Gateway Auth] Invalid Token: ${err.message}`);
+            res.clearCookie('jwt');
+        }
+    }
+
+    // Spezialfall Root /
+    if (url === '/') {
+        if (req.user) return res.redirect('/dashboard');
         return res.redirect('/login');
     }
 
-    try {
-        req.user = jwt.verify(token, JWT_SECRET);
-        next();
-    } catch (err) {
-        console.error(`[Gateway Auth] Invalid Token: ${err.message}`);
-        res.clearCookie('jwt');
-        if (isPublic) return next();
-        if (req.path.startsWith('/api')) return res.status(401).json({ message: 'Session expired' });
-        return res.redirect('/login?message=Expired');
+    // Zugriff erlaubt?
+    if (req.user || isPublic) {
+        return next();
     }
+
+    // Nicht autorisiert
+    console.warn(`[Gateway Auth] Denied: ${url}`);
+    if (url.includes('/api/')) return res.status(401).json({ message: 'Auth required' });
+    return res.redirect('/login');
 };
 
-const proxyOptions = {
-    proxyReqOptDecorator: (proxyReqOpts, originalReq) => {
-        if (originalReq.user) {
-            proxyReqOpts.headers['x-user-id'] = String(originalReq.user.id);
-            proxyReqOpts.headers['x-user-roles'] = Array.isArray(originalReq.user.roles) ? originalReq.user.roles.join(',') : originalReq.user.roles;
-            proxyReqOpts.headers['x-user-username'] = originalReq.user.username || '';
-        }
-        if (originalReq.cookies.jwt) {
-            proxyReqOpts.headers['authorization'] = `Bearer ${originalReq.cookies.jwt}`;
-        }
-        return proxyReqOpts;
+const setUserHeaders = (proxyReqOpts, originalReq) => {
+    if (originalReq.user) {
+        proxyReqOpts.headers['x-user-id'] = String(originalReq.user.id);
+        proxyReqOpts.headers['x-user-roles'] = Array.isArray(originalReq.user.roles) ? originalReq.user.roles.join(',') : originalReq.user.roles;
+        proxyReqOpts.headers['x-user-username'] = originalReq.user.username || '';
     }
+    if (originalReq.cookies.jwt) {
+        proxyReqOpts.headers['authorization'] = `Bearer ${originalReq.cookies.jwt}`;
+    }
+    return proxyReqOpts;
 };
 
-// --- PROXY ROUTES ---
+// --- PROXIES ---
 
-// Public Auth API
+// Public Auth (kein gatewayAuth nötig)
 app.use('/api/auth', httpProxy(AUTH_SERVICE_URL, { proxyReqPathResolver: req => req.url }));
 
 // User & Role Management
 app.use('/api/users/roles', gatewayAuth, httpProxy(AUTH_SERVICE_URL, { 
-    ...proxyOptions,
+    proxyReqOptDecorator: setUserHeaders,
     proxyReqPathResolver: req => `/roles${req.url}`
 }));
 
 app.use('/api/users', gatewayAuth, httpProxy(AUTH_SERVICE_URL, { 
-    ...proxyOptions,
+    proxyReqOptDecorator: setUserHeaders,
     proxyReqPathResolver: req => `/users${req.url}`
 }));
 
 // VPN Service
 app.use('/api/vpn', gatewayAuth, httpProxy(VPN_SERVICE_URL, {
-    ...proxyOptions,
+    proxyReqOptDecorator: setUserHeaders,
     proxyReqPathResolver: req => req.originalUrl
 }));
 
-// Core Services
-app.use('/api/jobs', gatewayAuth, httpProxy(JOB_SERVICE_URL, { ...proxyOptions, proxyReqPathResolver: req => req.url }));
-app.use('/api/shifts', gatewayAuth, httpProxy(SHIFT_SERVICE_URL, { ...proxyOptions, proxyReqPathResolver: req => `/api/shifts${req.url}` }));
-app.use('/api/locations', gatewayAuth, httpProxy(LOCATION_SERVICE_URL, { ...proxyOptions, proxyReqPathResolver: req => `/api/locations${req.url}` }));
-app.use('/api/clients', gatewayAuth, httpProxy(CLIENT_SERVICE_URL, { ...proxyOptions, proxyReqPathResolver: req => req.url }));
-app.use('/api/hr', gatewayAuth, httpProxy(HR_SERVICE_URL, { ...proxyOptions, proxyReqPathResolver: req => req.url }));
-app.use('/api/payroll', gatewayAuth, httpProxy(PAYROLL_SERVICE_URL, { ...proxyOptions, proxyReqPathResolver: req => req.url }));
+// API Proxies
+app.use('/api/jobs', gatewayAuth, httpProxy(JOB_SERVICE_URL, { proxyReqOptDecorator: setUserHeaders, proxyReqPathResolver: req => req.url }));
+app.use('/api/shifts', gatewayAuth, httpProxy(SHIFT_SERVICE_URL, { proxyReqOptDecorator: setUserHeaders, proxyReqPathResolver: req => `/api/shifts${req.url}` }));
+app.use('/api/locations', gatewayAuth, httpProxy(LOCATION_SERVICE_URL, { proxyReqOptDecorator: setUserHeaders, proxyReqPathResolver: req => `/api/locations${req.url}` }));
+app.use('/api/clients', gatewayAuth, httpProxy(CLIENT_SERVICE_URL, { proxyReqOptDecorator: setUserHeaders, proxyReqPathResolver: req => req.url }));
+app.use('/api/hr', gatewayAuth, httpProxy(HR_SERVICE_URL, { proxyReqOptDecorator: setUserHeaders, proxyReqPathResolver: req => req.url }));
+app.use('/api/payroll', gatewayAuth, httpProxy(PAYROLL_SERVICE_URL, { proxyReqOptDecorator: setUserHeaders, proxyReqPathResolver: req => req.url }));
 
-// File Storage
+// Files
+app.get('/api/files/download/:filename(*)', gatewayAuth, httpProxy(FILE_STORAGE_SERVICE_URL, {
+    proxyReqOptDecorator: setUserHeaders,
+    proxyReqPathResolver: req => req.originalUrl.replace('/api/files', '')
+}));
+
 app.use('/api/files', gatewayAuth, httpProxy(FILE_STORAGE_SERVICE_URL, {
-    ...proxyOptions,
+    proxyReqOptDecorator: setUserHeaders,
     proxyReqPathResolver: req => req.originalUrl.replace('/api/files', ''),
     parseReqBody: false
 }));
 
-// Frontend static & views
+// Static & Frontend
 app.use('/public', httpProxy(FRONTEND_EJS_SERVICE_URL, { proxyReqPathResolver: req => req.url }));
 app.use('/uploads', httpProxy(FRONTEND_EJS_SERVICE_URL, { proxyReqPathResolver: req => req.url }));
 
 app.use('/', gatewayAuth, httpProxy(FRONTEND_EJS_SERVICE_URL, {
-    ...proxyOptions,
-    proxyReqPathResolver: req => req.url,
     proxyReqOptDecorator: (opts, req) => {
-        const decorated = proxyOptions.proxyReqOptDecorator(opts, req);
+        const decorated = setUserHeaders(opts, req);
         decorated.headers['x-google-maps-api-key'] = GOOGLE_MAPS_API_KEY || '';
         return decorated;
-    }
+    },
+    proxyReqPathResolver: req => req.url
 }));
 
 app.listen(port, () => { console.log(`API Gateway live on port ${port}`); });
