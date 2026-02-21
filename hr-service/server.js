@@ -44,7 +44,7 @@ sequelize.authenticate()
         console.log('HR Service: Erfolgreich mit der MySQL-Datenbank verbunden (Sequelize)!');
         // Synchronisiert die Modelle mit der Datenbank
         // NUR FÜR ENTWICKLUNG! In Produktion besser Migrations-Tools verwenden
-        // await sequelize.sync({ alter: true }); // 'alter: true' versucht, bestehende Tabellen anzupassen
+        await sequelize.sync({ alter: true }); // 'alter: true' versucht, bestehende Tabellen anzupassen
         console.log('HR Service: Datenbank synchronisiert!');
 
         app.listen(port, () => {

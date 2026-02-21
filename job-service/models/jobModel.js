@@ -47,7 +47,7 @@ const Job = sequelize.define('Job', {
         allowNull: true,
         get() {
             const rawValue = this.getDataValue('planned_start_time');
-            return rawValue ? moment(rawValue).toISOString() : null; // GEÄNDERT: Zu ISO-String
+            return rawValue ? moment(rawValue).format('YYYY-MM-DD HH:mm:ss') : null;
         }
     },
     planned_end_time: {
@@ -55,7 +55,7 @@ const Job = sequelize.define('Job', {
         allowNull: true,
         get() {
             const rawValue = this.getDataValue('planned_end_time');
-            return rawValue ? moment(rawValue).toISOString() : null; // GEÄNDERT: Zu ISO-String
+            return rawValue ? moment(rawValue).format('YYYY-MM-DD HH:mm:ss') : null;
         }
     },
     actual_start_time: {
@@ -63,7 +63,7 @@ const Job = sequelize.define('Job', {
         allowNull: true,
         get() {
             const rawValue = this.getDataValue('actual_start_time');
-            return rawValue ? moment(rawValue).toISOString() : null; // GEÄNDERT: Zu ISO-String
+            return rawValue ? moment(rawValue).toISOString() : null;
         }
     },
     actual_end_time: {
@@ -71,7 +71,7 @@ const Job = sequelize.define('Job', {
         allowNull: true,
         get() {
             const rawValue = this.getDataValue('actual_end_time');
-            return rawValue ? moment(rawValue).toISOString() : null; // GEÄNDERT: Zu ISO-String
+            return rawValue ? moment(rawValue).toISOString() : null;
         }
     },
     before_photo_url: {

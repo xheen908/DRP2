@@ -8,59 +8,61 @@ const Shift = sequelize.define('Shift', {
         autoIncrement: true,
         primaryKey: true,
     },
-    employee_id: { // Geändert von user_id zu employee_id
+    user_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
     },
-    check_in_time: {
+    job_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
+    start_time: {
         type: DataTypes.DATE,
         allowNull: false,
     },
-    check_in_latitude: {
-        type: DataTypes.DECIMAL(10, 7), // Passend zum SQL-Schema
-        allowNull: false,
-    },
-    check_in_longitude: {
-        type: DataTypes.DECIMAL(10, 7), // Passend zum SQL-Schema
-        allowNull: false,
-    },
-    badge_id_scanned: {
-        type: DataTypes.STRING,
-        allowNull: false,
-    },
-    date: {
-        type: DataTypes.DATEONLY, // Nur Datum, z.B. 'YYYY-MM-DD'
-        allowNull: false,
-    },
-    check_out_time: {
+    end_time: {
         type: DataTypes.DATE,
-        allowNull: true, // Kann NULL sein, wenn die Schicht noch offen ist
+        allowNull: true,
     },
-    check_out_latitude: {
-        type: DataTypes.DECIMAL(10, 7),
-        allowNull: true, // Kann NULL sein
+    status: {
+        type: DataTypes.ENUM('Geplant', 'Bestätigt', 'Abgeschlossen', 'Abgebrochen'),
+        defaultValue: 'Geplant',
     },
-    check_out_longitude: {
-        type: DataTypes.DECIMAL(10, 7),
-        allowNull: true, // Kann NULL sein
+    notes: {
+        type: DataTypes.TEXT,
+        allowNull: true,
     },
-    // created_at und updated_at werden von Sequelize automatisch verwaltet,
-    // wenn timestamps: true gesetzt ist.
-    // Wenn Sie sie explizit verwalten möchten (wie im DRP-Backend), lassen Sie timestamps: false und definieren Sie sie hier.
-    // Für Konsistenz mit DRP/drp_backend behalten wir die explizite Definition bei.
-    created_at: {
+    break_duration_minutes: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+    },
+    night_hours: {
+        type: DataTypes.DECIMAL(5, 2),
+        defaultValue: 0,
+    },
+    sunday_hours: {
+        type: DataTypes.DECIMAL(5, 2),
+        defaultValue: 0,
+    },
+    holiday_hours: {
+        type: DataTypes.DECIMAL(5, 2),
+        defaultValue: 0,
+    },
+    total_work_hours: {
+        type: DataTypes.DECIMAL(5, 2),
+        defaultValue: 0,
+    },
+    createdAt: {
         type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW,
+        field: 'createdAt'
     },
-    updated_at: {
+    updatedAt: {
         type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW,
+        field: 'updatedAt'
     },
 }, {
     tableName: 'shifts',
-    timestamps: false, // Setzen Sie dies auf false, wenn Sie created_at/updated_at manuell definieren
-    createdAt: 'created_at',
-    updatedAt: 'updated_at',
+    timestamps: true,
 });
 
 module.exports = Shift;

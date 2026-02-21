@@ -1,456 +1,175 @@
+<%
+    // Hilfsfunktion zur Gruppierung nach Monaten
+    const monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+    
+    // Extrahiere alle vorhandenen Monate aus den Schichten
+    const availableMonths = [];
+    if (shifts && shifts.length > 0) {
+        shifts.forEach(s => {
+            const date = new Date(s.start_time);
+            const key = `${date.getFullYear()}-${date.getMonth()}`;
+            if (!availableMonths.find(m => m.key === key)) {
+                availableMonths.push({
+                    key: key,
+                    name: monthNames[date.getMonth()],
+                    year: date.getFullYear(),
+                    month: date.getMonth()
+                });
+            }
+        });
+    }
+    
+    // Sortiere Monate absteigend
+    availableMonths.sort((a, b) => {
+        if (a.year !== b.year) return b.year - a.year;
+        return b.month - a.month;
+    });
+
+    const currentMonthKey = availableMonths.length > 0 ? availableMonths[0].key : null;
+%>
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Schichtübersicht für <%= userName %></title>
-    <script src="https://cdn.tailwindcss.com"></script> <!-- Tailwind CSS CDN hinzufügen -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.34/moment-timezone-with-data-10-year-range.min.js"></script>
-    <style>
-        /* CSS für den Header wird hier belassen, da es global sein soll */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-        }
-        header {
-            background-color: #333;
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            position: relative;
-            z-index: 1000;
-        }
-        .app-title {
-            font-size: 1.5em;
-            font-weight: bold;
-        }
-        .burger-menu {
-            font-size: 2em;
-            cursor: pointer;
-            padding: 5px;
-            user-select: none;
-        }
-        header .dropdown-menu { /* Spezifische Regel für das Dropdown im Header */
-            display: none;
-            position: absolute;
-            top: 100%;
-            right: 0;
-            background-color: #444;
-            min-width: 160px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 999;
-            border-radius: 0 0 5px 5px;
-            overflow: hidden;
-        }
-        header .dropdown-menu.show {
-            display: block;
-        }
-        .dropdown-menu button {
-            color: white;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-            width: 100%;
-            text-align: left;
-            background-color: transparent;
-            border: none;
-            cursor: pointer;
-            font-size: 1em;
-            margin: 0;
-            border-radius: 0;
-        }
-        .dropdown-menu button:hover {
-            background-color: #575757;
-        }
-        .dropdown-menu a { /* Auch für Links im Menü */
-            color: white;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-            width: 100%;
-            text-align: left;
-            background-color: transparent;
-            border: none;
-            cursor: pointer;
-            font-size: 1em;
-            margin: 0;
-            border-radius: 0;
-        }
-        .dropdown-menu a:hover {
-            background-color: #575757;
-        }
-
-        /* Grundlegendes Modal-Styling (kann aus custom.css kommen) */
-        .modal {
-            display: none; /* Standardmäßig versteckt */
-            position: fixed; /* Bleibt über allem */
-            z-index: 1000; /* Ganz vorne */
-            left: 0;
-            top: 0;
-            width: 100%; /* Volle Breite */
-            height: 100%; /* Volle Höhe */
-            overflow: auto; /* Scrollbar, wenn nötig */
-            background-color: rgba(0,0,0,0.4); /* Dunkler Hintergrund */
-            align-items: center; /* Zentriert vertikal */
-            justify-content: center; /* Zentriert horizontal */
-        }
-        .modal-content {
-            background-color: #fefefe;
-            margin: auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%; /* Oder eine andere feste Breite */
-            max-width: 900px; /* Für die Karte etwas breiter */
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            position: relative;
-        }
-        .close-button {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            position: absolute;
-            top: 10px;
-            right: 20px;
-        }
-        .close-button:hover,
-        .close-button:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
-        }
-        /* Neuer Stil: Macht die klickbaren Elemente in der Tabelle erkennbar */
-        .clickable-coords {
-            cursor: pointer;
-            text-decoration: underline;
-            text-decoration-color: #2563eb;
-            text-underline-offset: 2px;
-        }
-        .clickable-coords:hover {
-            text-decoration-color: #1e40af;
-        }
-
-        /* Dashboard-Container-Stil (übernommen vom Dashboard) */
-        .dashboard-container {
-            background-color: #fff;
-            padding: 30px;
-            margin: 20px auto; /* Behält 20px horizontalen Abstand */
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            max-width: 1200px; /* Begrenzung wie im dashboard.ejs für den Container */
-        }
-        /* Überschrift im Container anpassen */
-        .dashboard-container h1 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 1.5em; /* Match h1 in dashboard.ejs */
-            font-weight: bold; /* Match h1 in dashboard.ejs */
-        }
-
-        /* Zusätzliche Tailwind-ähnliche Klassen für Basis-Stile, falls custom.css diese nicht hat */
-        .overflow-x-auto { overflow-x: auto; }
-        .bg-white { background-color: #fff; }
-        .shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
-        .rounded-lg { border-radius: 0.5rem; }
-        .p-4 { padding: 1rem; }
-        .min-w-full { min-width: 100%; }
-        .border-collapse { border-collapse: collapse; }
-        .bg-gray-100 { background-color: #f3f4f6; }
-        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-        .px-4 { padding-left: 1rem; padding-right: 1rem; }
-        .text-left { text-align: left; }
-        .text-sm { font-size: 0.875rem; }
-        .font-semibold { font-weight: 600; }
-        .text-gray-600 { color: #4b5563; }
-        .border-b { border-bottom-width: 1px; border-color: #e5e7eb; }
-        .hover\:bg-gray-50:hover { background-color: #f9fafb; }
-        .text-gray-800 { color: #1f2937; }
-        .text-red-500 { color: #ef4444; }
-        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
-        .mb-4 { margin-bottom: 1rem; }
-        .inline-block { display: inline-block; }
-        .bg-gray-300 { background-color: #d1d5db; }
-        .hover\:bg-gray-400:hover { background-color: #9ca3af; }
-    </style>
 </head>
-<body>
-    <%- include('../partials/header.ejs') %>
-
-    <div class="dashboard-container">
-        <h1>Schichtübersicht für: <%= userName %></h1>
-
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-6">
         <div class="mb-4">
-            <a href="/admin/users" class="inline-block px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Zurück zur Mitarbeiterverwaltung</a>
+            <a href="/admin/users" class="text-blue-600 hover:text-blue-800 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Zurück zur Benutzerverwaltung
+            </a>
         </div>
 
-        <%
-            // Konstante für maximale reguläre Arbeitsstunden pro Tag
-            const MAX_REGULAR_HOURS_PER_DAY = 8; // 8 Stunden
-
-            // Funktion zum Runden der Check-in-Zeit auf die nächste 15-Minuten-Marke (aufrunden)
-            function getAdjustedCheckInTime(checkInMoment) {
-                const minutes = checkInMoment.minutes();
-                const remainder = minutes % 15;
-                if (remainder !== 0) {
-                    checkInMoment.add(15 - remainder, 'minutes');
-                }
-                checkInMoment.set({ second: 0, millisecond: 0 }); // Sekunden und Millisekunden auf 0 setzen
-                return checkInMoment;
-            }
-
-            // Funktion zum Runden der Check-out-Zeit auf die vorherige 15-Minuten-Marke (abrunden)
-            function getAdjustedCheckOutTime(checkOutMoment) {
-                const minutes = checkOutMoment.minutes();
-                const remainder = minutes % 15;
-                if (remainder !== 0) {
-                    checkOutMoment.subtract(remainder, 'minutes'); // Minuten abziehen, um auf die vorherige 15er-Marke zu kommen
-                }
-                checkOutMoment.set({ second: 0, millisecond: 0 }); // Sekunden und Millisekunden auf 0 setzen
-                return checkOutMoment;
-            }
-
-            const monthlySummary = {}; // Speichert { totalRegularMillis, totalOvertimeMillis } pro Monat
-
-            shifts.forEach(shift => {
-                console.log('EJS Debug: Verarbeite Schicht für Monatsübersicht:', shift); // NEUE LOG-ZEILE
-                // Nur abgeschlossene Schichten mit Check-in und Check-out für die Übersicht berücksichtigen
-                if (shift.check_in_time && shift.check_out_time) {
-                    let checkIn = moment(shift.check_in_time);
-                    let checkOut = moment(shift.check_out_time);
-
-                    // Angepasste Check-in-Zeit anwenden (aufrunden)
-                    checkIn = getAdjustedCheckInTime(checkIn);
-                    // Angepasste Check-out-Zeit anwenden (abrunden)
-                    checkOut = getAdjustedCheckOutTime(checkOut);
-                    
-                    // Nur positive Dauer berücksichtigen
-                    if (checkOut.isAfter(checkIn)) {
-                        const totalShiftDurationMillis = moment.duration(checkOut.diff(checkIn)).asMilliseconds();
-                        const maxRegularMillis = MAX_REGULAR_HOURS_PER_DAY * 60 * 60 * 1000; // 8 Stunden in Millisekunden
-
-                        let regularMillis = Math.min(totalShiftDurationMillis, maxRegularMillis);
-                        let overtimeMillis = Math.max(0, totalShiftDurationMillis - maxRegularMillis);
-
-                        // Monat und Jahr für die Gruppierung (z.B. "2023-11")
-                        const monthKey = moment(shift.date).format('YYYY-MM');
-
-                        if (!monthlySummary[monthKey]) {
-                            monthlySummary[monthKey] = {
-                                totalRegularMillis: 0,
-                                totalOvertimeMillis: 0
-                            };
-                        }
-                        monthlySummary[monthKey].totalRegularMillis += regularMillis;
-                        monthlySummary[monthKey].totalOvertimeMillis += overtimeMillis;
-                    }
-                }
-            });
-
-            // Monate für die Anzeige sortieren
-            const sortedMonths = Object.keys(monthlySummary).sort((a, b) => moment(a).valueOf() - moment(b).valueOf());
-        %>
-
-        <div id="monthly-summary-container" style="margin-bottom: 20px; background-color: #f0f4f8; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <h2 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 15px; color: #333;">Monatsübersicht der geleisteten Stunden</h2>
-            <% if (sortedMonths.length > 0) { %>
-                <div style="display: flex; flex-wrap: wrap; gap: 20px;">
-                    <% sortedMonths.forEach(monthKey => {
-                        const summary = monthlySummary[monthKey];
-                        const totalRegularDuration = moment.duration(summary.totalRegularMillis);
-                        const totalOvertimeDuration = moment.duration(summary.totalOvertimeMillis);
-
-                        const regularHours = Math.floor(totalRegularDuration.asHours());
-                        const regularMinutes = totalRegularDuration.minutes();
-                        const overtimeHours = Math.floor(totalOvertimeDuration.asHours());
-                        const overtimeMinutes = totalOvertimeDuration.minutes();
-                    %>
-                        <div style="background-color: #e2e8f0; padding: 10px 15px; border-radius: 6px; border: 1px solid #cbd5e0;">
-                            <p style="font-weight: bold; color: #444; margin-bottom: 5px;"><%= moment(monthKey).format('MMMM YYYY') %></p>
-                            <p style="color: #666;">Regulär: <%= regularHours %>h <%= regularMinutes %>m</p>
-                            <% if (overtimeHours > 0 || overtimeMinutes > 0) { %>
-                                <p style="color: #d9534f; font-weight: bold;">Überstunden: <%= overtimeHours %>h <%= overtimeMinutes %>m</p>
-                            <% } %>
-                        </div>
+        <div class="bg-white shadow-md rounded-lg p-6">
+            <h1 class="text-2xl font-bold mb-6 text-gray-800">Schichtübersicht: <%= userName %></h1>
+            
+            <% if (availableMonths.length > 0) { %>
+                <!-- Tab Navigation -->
+                <div class="flex flex-wrap border-b mb-6 overflow-x-auto">
+                    <% availableMonths.forEach((m, index) => { %>
+                        <button 
+                            onclick="switchTab('<%= m.key %>')" 
+                            id="tab-btn-<%= m.key %>"
+                            class="tab-button px-6 py-2 font-medium text-sm focus:outline-none transition-colors duration-200 <%= m.key === currentMonthKey ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700' %>"
+                        >
+                            <%= m.name %> <%= m.year %>
+                        </button>
                     <% }); %>
                 </div>
-            <% } else { %>
-                <p style="color: #666;">Keine abgeschlossenen Schichten für die Monatsübersicht gefunden.</p>
-            <% } %>
-        </div>
 
-
-        <div id="shifts-list-container" class="overflow-x-auto bg-white shadow-md rounded-lg p-4">
-            <% if (shifts && shifts.length > 0) { %>
-                <table class="min-w-full bg-white border-collapse">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Datum</th>
-                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Check-in (ange.)</th>
-                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Check-out (ange.)</th>
-                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Reg. Dauer</th>
-                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Überstunden</th>
-                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Check-in Lat/Lon</th>
-                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Check-out Lat/Lon</th>
-                            <!-- Weitere Spalten nach Bedarf -->
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <% shifts.forEach(shift => { %>
-                            <tr class="hover:bg-gray-50">
-                                <td class="py-2 px-4 border-b text-sm text-gray-800"><%= moment(shift.date).format('DD.MM.YYYY') %></td>
-                                <td class="py-2 px-4 border-b text-sm text-gray-800">
-                                    <% 
-                                        const originalCheckInMoment = moment(shift.check_in_time);
-                                        const adjustedCheckInMoment = getAdjustedCheckInTime(originalCheckInMoment.clone()); // .clone() ist wichtig
-                                    %>
-                                    <%= adjustedCheckInMoment.tz('Europe/Berlin').format('HH:mm:ss') %>
-                                    <% if (!originalCheckInMoment.isSame(adjustedCheckInMoment, 'minute')) { %>
-                                        <span style="font-size: 0.75em; color: #777;">(Org: <%= originalCheckInMoment.tz('Europe/Berlin').format('HH:mm:ss') %>)</span>
-                                    <% } %>
-                                </td>
-                                <td class="py-2 px-4 border-b text-sm text-gray-800">
-                                    <% if (shift.check_out_time) { %>
-                                        <%
-                                            const originalCheckOutMoment = moment(shift.check_out_time);
-                                            const adjustedCheckOutMoment = getAdjustedCheckOutTime(originalCheckOutMoment.clone()); // .clone() ist wichtig
-                                        %>
-                                        <%= adjustedCheckOutMoment.tz('Europe/Berlin').format('HH:mm:ss') %>
-                                        <% if (!originalCheckOutMoment.isSame(adjustedCheckOutMoment, 'minute')) { %>
-                                            <span style="font-size: 0.75em; color: #777;">(Org: <%= originalCheckOutMoment.tz('Europe/Berlin').format('HH:mm:ss') %>)</span>
-                                        <% } %>
-                                    <% } else { %>
-                                        Offen
-                                    <% } %>
-                                </td>
-                                <% 
-                                    let regularDurationHuman = '-';
-                                    let overtimeDurationHuman = '-';
-
-                                    if (shift.check_in_time && shift.check_out_time) {
-                                        const adjCheckIn = getAdjustedCheckInTime(moment(shift.check_in_time).clone());
-                                        const adjCheckOut = getAdjustedCheckOutTime(moment(shift.check_out_time).clone());
-                                        
-                                        let totalCalculatedDurationMillis = 0;
-                                        if (adjCheckOut.isAfter(adjCheckIn)) {
-                                            totalCalculatedDurationMillis = moment.duration(adjCheckOut.diff(adjCheckIn)).asMilliseconds();
-                                        }
-
-                                        const maxRegMillis = MAX_REGULAR_HOURS_PER_DAY * 60 * 60 * 1000;
-                                        const regMillis = Math.min(totalCalculatedDurationMillis, maxRegMillis);
-                                        const ovtMillis = Math.max(0, totalCalculatedDurationMillis - maxRegMillis);
-
-                                        regularDurationHuman = moment.duration(regMillis).humanize();
-                                        if (ovtMillis > 0) {
-                                            overtimeDurationHuman = moment.duration(ovtMillis).humanize();
-                                        } else {
-                                            overtimeDurationHuman = '0m'; // 0 Minuten, wenn keine Überstunden
-                                        }
-                                    }
-                                %>
-                                <td class="py-2 px-4 border-b text-sm text-gray-800"><%= regularDurationHuman %></td>
-                                <td class="py-2 px-4 border-b text-sm text-gray-800"><%= overtimeDurationHuman %></td>
-                                <td class="py-2 px-4 border-b text-sm text-gray-800">
-                                    <% 
-                                        const inLat = parseFloat(shift.check_in_latitude);
-                                        const inLon = parseFloat(shift.check_in_longitude);
-                                    %>
-                                    <% if (shift.check_in_latitude != null && shift.check_in_longitude != null && !isNaN(inLat) && !isNaN(inLon)) { %>
-                                        <span class="text-blue-600 hover:text-blue-800 clickable-coords" 
-                                              onclick="openMapModalByCoords('<%= userName %> - Check-in', <%= inLat %>, <%= inLon %>)">
-                                            <%= inLat.toFixed(6) %>, <%= inLon.toFixed(6) %>
-                                        </span>
-                                    <% } else { %>
-                                        -
-                                    <% } %>
-                                </td>
-                                <td class="py-2 px-4 border-b text-sm text-gray-800">
-                                    <% 
-                                        const outLat = parseFloat(shift.check_out_latitude);
-                                        const outLon = parseFloat(shift.check_out_longitude);
-                                    %>
-                                    <% if (shift.check_out_latitude != null && shift.check_out_longitude != null && !isNaN(outLat) && !isNaN(outLon)) { %>
-                                        <span class="text-blue-600 hover:text-blue-800 clickable-coords" 
-                                              onclick="openMapModalByCoords('<%= userName %> - Check-out', <%= outLat %>, <%= outLon %>)">
-                                            <%= outLat.toFixed(6) %>, <%= outLon.toFixed(6) %>
-                                        </span>
-                                    <% } else { %>
-                                        -
-                                    <% } %>
-                                </td>
-                                <!-- Weitere Zellen nach Bedarf -->
+                <div class="overflow-x-auto border rounded-lg">
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="py-3 px-4 border-b text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Datum</th>
+                                <th class="py-3 px-4 border-b text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Beginn</th>
+                                <th class="py-3 px-4 border-b text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Ende</th>
+                                <th class="py-3 px-4 border-b text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Pause (Min)</th>
+                                <th class="py-3 px-4 border-b text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Netto (h)</th>
+                                <th class="py-3 px-4 border-b text-center text-xs font-bold text-blue-600 uppercase tracking-wider">Nacht (h)</th>
+                                <th class="py-3 px-4 border-b text-center text-xs font-bold text-red-600 uppercase tracking-wider">Sonntag (h)</th>
+                                <th class="py-3 px-4 border-b text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                             </tr>
-                        <% }); %>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            <% shifts.forEach(shift => { 
+                                const sDate = new Date(shift.start_time);
+                                const rowKey = `${sDate.getFullYear()}-${sDate.getMonth()}`;
+                            %>
+                                <tr class="shift-row hover:bg-gray-50 transition-colors duration-150 <%= shift.restPeriodViolation ? 'bg-red-50' : '' %>" 
+                                    data-month-key="<%= rowKey %>"
+                                    style="<%= rowKey === currentMonthKey ? '' : 'display: none;' %>">
+                                    <td class="py-3 px-4 border-b text-sm text-gray-700 font-medium"><%= moment(shift.start_time).format('DD.MM.YYYY') %></td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600"><%= moment(shift.start_time).format('HH:mm') %></td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600"><%= shift.end_time ? moment(shift.end_time).format('HH:mm') : '-' %></td>
+                                    <td class="py-3 px-4 border-b text-center text-sm text-gray-600"><%= shift.break_duration_minutes || 0 %></td>
+                                    <td class="py-3 px-4 border-b text-center text-sm font-bold text-gray-800">
+                                        <% if (shift.total_work_hours > 0) { %>
+                                            <%= shift.total_work_hours %>
+                                        <% } else if (shift.end_time) { %>
+                                            <% 
+                                                const dur = moment.duration(moment(shift.end_time).diff(moment(shift.start_time)));
+                                                const hours = dur.asHours();
+                                                const brk = hours > 9 ? 0.75 : (hours > 6 ? 0.5 : 0);
+                                                const net = Math.max(0, hours - brk);
+                                            %>
+                                            <span class="text-gray-400 italic"><%= net.toFixed(2) %>*</span>
+                                        <% } else { %>
+                                            -
+                                        <% } %>
+                                    </td>
+                                    <td class="py-3 px-4 border-b text-center text-sm font-semibold text-blue-700"><%= shift.night_hours > 0 ? shift.night_hours : '-' %></td>
+                                    <td class="py-3 px-4 border-b text-center text-sm font-semibold text-red-700"><%= shift.sunday_hours > 0 ? shift.sunday_hours : '-' %></td>
+                                    <td class="py-3 px-4 border-b">
+                                        <span class="px-2.5 py-1 rounded-full text-xs font-semibold <%= shift.status === 'Abgeschlossen' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' %>">
+                                            <%= shift.status %>
+                                        </span>
+                                        <% if (shift.restPeriodViolation) { %>
+                                            <span class="ml-1 inline-block cursor-help" title="Ruhezeit unterschritten (< 11h)">⚠️</span>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
             <% } else { %>
-                <p class="text-center text-gray-500 py-4">Für diesen Mitarbeiter wurden keine Schichten gefunden.</p>
+                <div class="text-center py-12">
+                    <p class="text-gray-500 text-lg">Für diesen Mitarbeiter wurden keine Schichten gefunden.</p>
+                </div>
             <% } %>
-        </div>
-    </div>
-
-    <!-- Modal für die Karte -->
-    <div id="map-modal" class="modal">
-        <div class="modal-content" id="map-modal-content">
-            <span class="close-button" onclick="closeMapModal()">×</span>
-            <h3 id="map-modal-title">Einsatzort auf Karte</h3>
-            <div id="map-container" style="height: 500px; width: 100%; margin-top: 10px;">
-                Karte wird geladen...
+            
+            <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                    <h4 class="text-sm font-bold text-blue-800 mb-2 uppercase tracking-wide">Berechnungshinweise</h4>
+                    <ul class="text-xs text-blue-700 space-y-1">
+                        <li>• <strong>Pause:</strong> 30 Min ab 6h, 45 Min ab 9h Bruttozeit (ArbZG).</li>
+                        <li>• <strong>Nacht:</strong> Zuschlagspflichtig zwischen 20:00 und 06:00 Uhr.</li>
+                        <li>• <strong>Sonntag:</strong> 50% Zuschlag für Arbeit an Sonntagen.</li>
+                    </ul>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                    <h4 class="text-sm font-bold text-gray-800 mb-2 uppercase tracking-wide">Legende</h4>
+                    <ul class="text-xs text-gray-600 space-y-1">
+                        <li>• <span class="text-red-600 font-bold">⚠️</span> Ruhezeit von 11h wurde unterschritten.</li>
+                        <li>• <span class="italic text-gray-400">0.00*</span> Live berechneter Wert (nicht in DB gespeichert).</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Google Maps API Key vom Backend erhalten
-        const GOOGLE_MAPS_API_KEY = '<%= googleMapsApiKey %>';
-
-        // Referenzen für das Karten-Modal
-        const mapModal = document.getElementById('map-modal');
-        const mapModalTitle = document.getElementById('map-modal-title');
-        const mapContainer = document.getElementById('map-container');
-
-        // Schließt das Karten-Modal
-        function closeMapModal() {
-            mapModal.style.display = 'none';
-            mapContainer.innerHTML = 'Karte wird geladen...'; // Inhalt zurücksetzen
-        }
-
-        // Öffnet das Modal und zeigt die Karte anhand der Koordinaten an
-        function openMapModalByCoords(locationTitle, lat, lon) {
-             if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'DEIN_GOOGLE_MAPS_API_KEY') { // Fallback, falls der Key nicht übergeben wird
-                 alert('FEHLER: Bitte den Google Maps API Key in der .env-Datei setzen und an das Template übergeben!');
-                 return;
-            }
-            mapModalTitle.textContent = `Karte für ${locationTitle}`;
+        function switchTab(monthKey) {
+            // Alle Zeilen verstecken
+            document.querySelectorAll('.shift-row').forEach(row => {
+                row.style.display = 'none';
+            });
             
-            // Google Maps Embed URL mit den Koordinaten
-            const embedUrl = `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${lat},${lon}&zoom=17`;
-            
-            mapContainer.innerHTML = `
-                <iframe
-                    width="100%"
-                    height="500"
-                    frameborder="0" style="border:0"
-                    src="${embedUrl}"
-                    allowfullscreen>
-                </iframe>
-            `;
-            mapModal.style.display = 'flex';
-        }
+            // Nur Zeilen des gewählten Monats zeigen
+            document.querySelectorAll(`.shift-row[data-month-key="${monthKey}"]`).forEach(row => {
+                row.style.display = '';
+            });
 
-        // Schließen des Modals beim Klicken außerhalb
-        window.onclick = function(event) {
-            if (event.target === mapModal) {
-                closeMapModal();
-            }
-        };
-        window.openMapModalByCoords = openMapModalByCoords; // Global verfügbar machen
+            // Button Styling anpassen
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('border-b-2', 'border-blue-500', 'text-blue-600');
+                btn.classList.add('text-gray-500');
+            });
+            
+            const activeBtn = document.getElementById(`tab-btn-${monthKey}`);
+            activeBtn.classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+            activeBtn.classList.remove('text-gray-500');
+        }
     </script>
 </body>
 </html>

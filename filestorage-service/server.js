@@ -35,7 +35,7 @@ const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
 const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 const S3_ENDPOINT = process.env.S3_ENDPOINT;
 // Basis-URL für das API Gateway, um Links zu generieren
-const API_GATEWAY_URL = process.env.API_GATEWAY_URL || 'https://drp.vpn23.com';
+const API_GATEWAY_URL = process.env.API_GATEWAY_URL || 'http://localhost:3005';
 
 
 if (!RCLONE_BUCKET_NAME || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY || !S3_ENDPOINT) {

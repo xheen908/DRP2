@@ -1,19 +1,36 @@
+// DRP2/payroll-service/routes/payrollRoutes.js
 const express = require('express');
 const router = express.Router();
 const payrollController = require('../controllers/payrollController');
 
-// Routen für Gehaltsabrechnungsläufe (Payroll Runs)
-router.post('/runs', payrollController.createPayrollRun); // Neuen Lauf erstellen
-router.get('/runs', payrollController.getAllPayrollRuns); // Alle Läufe abrufen
-router.get('/runs/:id', payrollController.getPayrollRunById); // Spezifischen Lauf abrufen
-router.post('/runs/:id/calculate', payrollController.calculatePayrollRun); // Gehaltsabrechnungen für einen Lauf berechnen
-router.put('/runs/:id/status', payrollController.updatePayrollRunStatus); // Status eines Laufs aktualisieren
-router.delete('/runs/:id', payrollController.deletePayrollRun); // Lauf löschen
+// Helper to ensure controller method exists
+const check = (fn) => {
+    if (typeof fn !== 'function') {
+        return (req, res) => res.status(500).json({ message: 'Controller method not found' });
+    }
+    return fn;
+};
 
-// Routen für einzelne Gehaltsabrechnungen (Payslips)
-router.get('/payslips/employee/:employeeId', payrollController.getEmployeePayslips); // Payslips für einen Mitarbeiter abrufen
-router.get('/payslips/:id', payrollController.getSinglePayslip); // Einzelnen Payslip abrufen
-router.post('/payslips/:id/generate-document', payrollController.generatePayslipDocument); // PDF-Dokument generieren (Placeholder)
+// Gehaltsabrechnungsläufe (Payroll Runs)
+router.post('/runs', payrollController.createPayrollRun);
+router.get('/runs', payrollController.getAllPayrollRuns);
+router.get('/runs/:id', payrollController.getPayrollRunById);
+router.post('/runs/:id/calculate', payrollController.calculatePayrollRun);
+router.put('/runs/:id/status', (req, res, next) => {
+    if (payrollController.updatePayrollRunStatus) return payrollController.updatePayrollRunStatus(req, res, next);
+    res.status(500).json({ message: 'Method not ready' });
+});
+router.delete('/runs/:id', payrollController.deletePayrollRun);
 
+// Einzelschritte
+router.get('/payslips/employee/:employeeId', (req, res, next) => {
+    if (payrollController.getEmployeePayslips) return payrollController.getEmployeePayslips(req, res, next);
+    res.status(500).json({ message: 'Method not ready' });
+});
+router.get('/payslips/:id', (req, res, next) => {
+    if (payrollController.getSinglePayslip) return payrollController.getSinglePayslip(req, res, next);
+    res.status(500).json({ message: 'Method not ready' });
+});
+router.post('/payslips/:id/generate-document', payrollController.generatePayslipDocument);
 
 module.exports = router;
