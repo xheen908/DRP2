@@ -171,6 +171,10 @@ exports.getEmployeeByUserId = async (req, res) => {
     }
 };
 
+const fetch = require('node-fetch'); // Für Kommunikation mit anderen Services
+
+const VPN_SERVICE_URL = process.env.VPN_SERVICE_URL || 'http://vpn-service:3800';
+
 // Einen neuen Mitarbeiter erstellen
 exports.createEmployee = async (req, res) => {
     try {
@@ -195,6 +199,22 @@ exports.createEmployee = async (req, res) => {
 
         await handleAssociatedData(newEmployee, { addresses, bankDetails, taxSocialSecurity, emergencyContacts });
         
+        // --- AUTOMATISCHE VPN ERSTELLUNG ---
+        try {
+            console.log(`[HR Service] Triggering automatic VPN setup for userId ${userId}...`);
+            await fetch(`${VPN_SERVICE_URL}/api/vpn/clients`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: userId,
+                    deviceName: 'Workstation_' + lastName
+                })
+            });
+            console.log(`[HR Service] VPN auto-setup requested for user ${userId}.`);
+        } catch (vpnError) {
+            console.error(`[HR Service] Failed to trigger VPN auto-setup:`, vpnError.message);
+        }
+
         // Den neu erstellten Mitarbeiter mit allen zugehörigen Daten zurückgeben
         const createdEmployeeWithAssociations = await Employee.findByPk(newEmployee.id, {
             include: [

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DRP Mitarbeiter Verwaltung</title>
     <script src="https://cdn.tailwindcss.com"></script> <!-- Tailwind CSS CDN hinzufügen -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
         /* CSS für den Header wird hier belassen, da es global sein soll */
         body {
@@ -491,6 +492,24 @@
         </div>
         <!-- ENDE BARCODE MODAL -->
 
+        <!-- VPN Modal -->
+        <div id="vpn-modal" class="modal">
+            <div class="modal-content" style="max-width: 500px;">
+                <span class="close-button" onclick="closeVpnModal()">×</span>
+                <h3 class="text-lg font-bold mb-4">VPN Zugang</h3>
+                <div id="vpn-qrcode-container" class="flex justify-center mb-4">
+                    <canvas id="vpn-qrcode"></canvas>
+                </div>
+                <div class="bg-gray-100 p-3 rounded mb-4">
+                    <p class="text-xs font-mono break-all" id="vpn-config-preview"></p>
+                </div>
+                <div class="flex justify-center space-x-4">
+                    <button onclick="downloadVpnConfig()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Download .conf</button>
+                    <button onclick="closeVpnModal()" class="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400">Schließen</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.3/JsBarcode.all.min.js"></script>
@@ -499,6 +518,8 @@
         let allUsers = [];
         let allRoles = [];
         let currentEditingUserId = null; 
+        let currentVpnConfig = "";
+        let currentVpnUserName = "";
         
         const userListContainer = document.getElementById('user-list-container');
         const addUserButton = document.getElementById('add-user-button');
@@ -546,6 +567,9 @@
         const barcodeSvg = document.getElementById('barcode-svg');
         const barcodeValueSpan = document.getElementById('barcode-value');
 
+        const vpnModal = document.getElementById('vpn-modal');
+        const vpnQrCanvas = document.getElementById('vpn-qrcode');
+        const vpnPreview = document.getElementById('vpn-config-preview');
 
         async function logout() {
             try {
@@ -659,6 +683,7 @@
                         <td class="py-2 px-4 border-b text-sm text-gray-800">${user.isActive ? 'Aktiv' : 'Inaktiv'}</td>
                         <td class="py-2 px-4 border-b text-sm">
                             <button onclick="openEditUserModal(${user.id})" class="text-blue-600 hover:text-blue-800 font-medium mr-2">Bearbeiten</button>
+                            <button onclick="openVpnModal(${user.id}, '${user.full_name}')" class="text-green-600 hover:text-green-800 font-medium mr-2">VPN</button>
                             <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-800 font-medium">Löschen</button>
                         </td>
                     </tr>
@@ -679,6 +704,41 @@
                 return { 'Authorization': `Bearer ${token}` };
             }
             return {};
+        }
+
+        async function openVpnModal(userId, fullName) {
+            currentVpnUserName = fullName;
+            vpnPreview.textContent = "Lade Konfiguration...";
+            vpnModal.style.display = 'flex';
+
+            try {
+                const response = await fetch(`/api/vpn/clients/user/${userId}/config`, {
+                    headers: getAuthHeader()
+                });
+                if (!response.ok) throw new Error('Kein VPN Profil gefunden.');
+                
+                currentVpnConfig = await response.text();
+                vpnPreview.textContent = currentVpnConfig.substring(0, 100) + "...";
+                
+                QRCode.toCanvas(vpnQrCanvas, currentVpnConfig, { width: 256 }, function (error) {
+                    if (error) console.error(error);
+                });
+            } catch (err) {
+                vpnPreview.textContent = err.message;
+            }
+        }
+
+        function closeVpnModal() {
+            vpnModal.style.display = 'none';
+        }
+
+        function downloadVpnConfig() {
+            const blob = new Blob([currentVpnConfig], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vpn_${currentVpnUserName.replace(/\s/g, '_')}.conf`;
+            a.click();
         }
 
         function openAddUserModal() {
@@ -1291,6 +1351,9 @@
             barcodeValueSpan.textContent = '';
         }
 
+        window.openVpnModal = openVpnModal;
+        window.closeVpnModal = closeVpnModal;
+        window.downloadVpnConfig = downloadVpnConfig;
 
         document.addEventListener('DOMContentLoaded', async () => {
             if (loggedInUser.roles && loggedInUser.roles.includes('Manager')) {
@@ -1311,6 +1374,9 @@
                 }
                 if (event.target === userFormModal) {
                     cancelUserForm();
+                }
+                if (event.target === vpnModal) {
+                    closeVpnModal();
                 }
             }
         });

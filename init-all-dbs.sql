@@ -273,5 +273,6 @@ GRANT ALL PRIVILEGES ON job_db.* TO 'drpuser'@'%';
 GRANT ALL PRIVILEGES ON shift_db.* TO 'drpuser'@'%';
 GRANT ALL PRIVILEGES ON hr_db.* TO 'drpuser'@'%'; -- <-- NEU: Berechtigungen für hr_db hinzufügen
 GRANT ALL PRIVILEGES ON payroll_db.* TO 'drpuser'@'%';
+GRANT ALL PRIVILEGES ON vpn_db.* TO 'drpuser'@'%';
 
 FLUSH PRIVILEGES;

@@ -352,7 +352,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_PASS}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASS}
-      MYSQL_MULTIPLE_DATABASES: "auth_db,job_db,shift_db,location_db,client_db,hr_db" # <-- hr_db HINZUGEFÜGT
+      MYSQL_MULTIPLE_DATABASES: "auth_db,job_db,shift_db,location_db,client_db,hr_db,vpn_db" # <-- hr_db, vpn_db HINZUGEFÜGT
     volumes:
       - mysql_data:/var/lib/mysql
       - ./init-all-dbs.sql:/docker-entrypoint-initdb.d/init-all-dbs.sql
@@ -397,6 +397,37 @@ services:
     command: tunnel run --token ${TUNNEL_TOKEN}
     depends_on:
       - api-gateway
+    networks:
+      - drp_network
+
+  vpn-service:
+    build:
+      context: ./vpn-service
+      dockerfile: Dockerfile
+    container_name: drp_vpn_service
+    restart: always
+    ports:
+      - "3800:3800"
+      - "51820:51820/udp"
+    volumes:
+      - "./vpn-service:/app"
+      - "/app/node_modules"
+      - "/lib/modules:/lib/modules" # For WireGuard kernel module access
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.ip_forward=1
+    environment:
+      DB_HOST: mysql-db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASS}
+      DB_NAME: vpn_db
+      PORT: 3800
+    depends_on:
+      mysql-db:
+        condition: service_healthy
     networks:
       - drp_network
 
