@@ -27,9 +27,16 @@ DRP2 besteht aus **13+ unabhängigen Microservices**, die über ein zentrales AP
 * **Payroll Service:** Hochpräzise Gehaltsabrechnung. Integriert HR- und Schichtdaten für Brutto-/Netto-Berechnungen.
 * **Shift Service:** Erfassung von Arbeitszeiten, Check-in/out Funktionalität und Schichtplanung.
 * **Location Service:** Verwaltung von Einsatzorten und Firmenstandorten inkl. NFC-Validierung.
-* **Tax Engine (C++):** Hochperformante Rechen-Engine für die deutsche Lohnsteuer nach aktuellem PAP.
+* **Tax Engine (C++):** Der technische Kern für steuerliche Berechnungen. Er implementiert den offiziellen deutschen Programmablaufplan (PAP) in hochperformantem C++.
 * **File Storage:** Zentraler Dienst für Dokumenten-Management (Abrechnungen, Uploads) via Rclone/S3.
 * **Frontend EJS:** Modernes User-Interface auf Basis von EJS und Tailwind CSS.
+
+### Deep Dive: Tax Engine (C++)
+Die **Tax Engine** nimmt eine Sonderrolle im DRP2-Stack ein. Während die meisten Services in Node.js geschrieben sind, wurde die Rechenlogik für Steuern bewusst in **C++** implementiert:
+* **Präzision:** Direkte Umsetzung der hochkomplexen mathematischen Formeln des Bundesfinanzministeriums (PAP 2026).
+* **Performance:** Blitzschnelle Berechnung ganzer Abrechnungsläufe durch vorkompilierten Code.
+* **Sicherheit:** Kapselung der kritischen Finanzlogik in einem spezialisierten Dienst.
+* **Integration:** Der Payroll-Service kommuniziert via interner REST-API mit der Engine, übergibt Bruttowerte sowie Steuermerkmale und erhält in Millisekunden den exakten Abzug-Breakdown (LSt, Soli, KiSt, SV-Anteile).
 
 ### Spezial-Features (ArbZG & Steuer)
 Das System erfüllt strenge gesetzliche Anforderungen:
