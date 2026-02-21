@@ -34,16 +34,17 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-const authenticateGateway = (req, res, next) => {
-    const token = req.cookies.jwt || req.headers['authorization']?.split(' ')[1];
-    const publicPaths = ['/', '/login', '/api/auth/login', '/api/auth/register', '/api/auth/logout'];
-    const publicPrefixes = ['/public', '/uploads'];
+// --- AUTH MIDDLEWARE ---
 
-    if (publicPaths.includes(req.path) || publicPrefixes.some(p => req.path.startsWith(p))) {
-        return next();
-    }
+const gatewayAuth = (req, res, next) => {
+    const token = req.cookies.jwt || req.headers['authorization']?.split(' ')[1];
+    
+    const publicPaths = ['/', '/login', '/api/auth/login', '/api/auth/register'];
+    const publicPrefixes = ['/public', '/uploads'];
+    const isPublic = publicPaths.includes(req.path) || publicPrefixes.some(p => req.path.startsWith(p));
 
     if (!token) {
+        if (isPublic) return next();
         if (req.path.startsWith('/api')) return res.status(401).json({ message: 'Auth required' });
         return res.redirect('/login');
     }
@@ -52,94 +53,77 @@ const authenticateGateway = (req, res, next) => {
         req.user = jwt.verify(token, JWT_SECRET);
         next();
     } catch (err) {
+        console.error(`[Gateway Auth] Invalid Token: ${err.message}`);
         res.clearCookie('jwt');
+        if (isPublic) return next();
         if (req.path.startsWith('/api')) return res.status(401).json({ message: 'Session expired' });
         return res.redirect('/login?message=Expired');
     }
 };
 
-const setUserHeaders = (proxyReqOpts, originalReq) => {
-    if (originalReq.user) {
-        proxyReqOpts.headers['X-User-ID'] = String(originalReq.user.id);
-        proxyReqOpts.headers['X-User-Roles'] = Array.isArray(originalReq.user.roles) ? originalReq.user.roles.join(',') : originalReq.user.roles;
-        proxyReqOpts.headers['X-User-Username'] = originalReq.user.username || '';
+const proxyOptions = {
+    proxyReqOptDecorator: (proxyReqOpts, originalReq) => {
+        if (originalReq.user) {
+            proxyReqOpts.headers['x-user-id'] = String(originalReq.user.id);
+            proxyReqOpts.headers['x-user-roles'] = Array.isArray(originalReq.user.roles) ? originalReq.user.roles.join(',') : originalReq.user.roles;
+            proxyReqOpts.headers['x-user-username'] = originalReq.user.username || '';
+        }
+        if (originalReq.cookies.jwt) {
+            proxyReqOpts.headers['authorization'] = `Bearer ${originalReq.cookies.jwt}`;
+        }
+        return proxyReqOpts;
     }
-    if (originalReq.cookies.jwt) {
-        proxyReqOpts.headers['Authorization'] = `Bearer ${originalReq.cookies.jwt}`;
-    }
-    return proxyReqOpts;
 };
 
-// --- PROXIES ---
+// --- PROXY ROUTES ---
 
+// Public Auth API
 app.use('/api/auth', httpProxy(AUTH_SERVICE_URL, { proxyReqPathResolver: req => req.url }));
 
-app.use('/api/users/roles', authenticateGateway, httpProxy(AUTH_SERVICE_URL, { 
-    proxyReqPathResolver: req => `/roles${req.url}`,
-    proxyReqOptDecorator: setUserHeaders
+// User & Role Management
+app.use('/api/users/roles', gatewayAuth, httpProxy(AUTH_SERVICE_URL, { 
+    ...proxyOptions,
+    proxyReqPathResolver: req => `/roles${req.url}`
 }));
 
-app.use('/api/users', authenticateGateway, httpProxy(AUTH_SERVICE_URL, { 
-    proxyReqPathResolver: req => `/users${req.url}`,
-    proxyReqOptDecorator: setUserHeaders
+app.use('/api/users', gatewayAuth, httpProxy(AUTH_SERVICE_URL, { 
+    ...proxyOptions,
+    proxyReqPathResolver: req => `/users${req.url}`
 }));
 
-app.use('/api/vpn', authenticateGateway, httpProxy(VPN_SERVICE_URL, {
-    proxyReqPathResolver: req => req.originalUrl,
-    proxyReqOptDecorator: setUserHeaders
+// VPN Service
+app.use('/api/vpn', gatewayAuth, httpProxy(VPN_SERVICE_URL, {
+    ...proxyOptions,
+    proxyReqPathResolver: req => req.originalUrl
 }));
 
-app.use('/api/jobs', authenticateGateway, httpProxy(JOB_SERVICE_URL, { 
-    proxyReqPathResolver: req => req.url, 
-    proxyReqOptDecorator: setUserHeaders 
-}));
+// Core Services
+app.use('/api/jobs', gatewayAuth, httpProxy(JOB_SERVICE_URL, { ...proxyOptions, proxyReqPathResolver: req => req.url }));
+app.use('/api/shifts', gatewayAuth, httpProxy(SHIFT_SERVICE_URL, { ...proxyOptions, proxyReqPathResolver: req => `/api/shifts${req.url}` }));
+app.use('/api/locations', gatewayAuth, httpProxy(LOCATION_SERVICE_URL, { ...proxyOptions, proxyReqPathResolver: req => `/api/locations${req.url}` }));
+app.use('/api/clients', gatewayAuth, httpProxy(CLIENT_SERVICE_URL, { ...proxyOptions, proxyReqPathResolver: req => req.url }));
+app.use('/api/hr', gatewayAuth, httpProxy(HR_SERVICE_URL, { ...proxyOptions, proxyReqPathResolver: req => req.url }));
+app.use('/api/payroll', gatewayAuth, httpProxy(PAYROLL_SERVICE_URL, { ...proxyOptions, proxyReqPathResolver: req => req.url }));
 
-app.use('/api/shifts', authenticateGateway, httpProxy(SHIFT_SERVICE_URL, { 
-    proxyReqPathResolver: req => `/api/shifts${req.url}`, 
-    proxyReqOptDecorator: setUserHeaders 
-}));
-
-app.use('/api/locations', authenticateGateway, httpProxy(LOCATION_SERVICE_URL, { 
-    proxyReqPathResolver: req => `/api/locations${req.url}`, 
-    proxyReqOptDecorator: setUserHeaders 
-}));
-
-app.use('/api/clients', authenticateGateway, httpProxy(CLIENT_SERVICE_URL, { 
-    proxyReqPathResolver: req => req.url, 
-    proxyReqOptDecorator: setUserHeaders 
-}));
-
-app.use('/api/hr', authenticateGateway, httpProxy(HR_SERVICE_URL, { 
-    proxyReqPathResolver: req => req.url, 
-    proxyReqOptDecorator: setUserHeaders 
-}));
-
-app.use('/api/payroll', authenticateGateway, httpProxy(PAYROLL_SERVICE_URL, { 
-    proxyReqPathResolver: req => req.url, 
-    proxyReqOptDecorator: setUserHeaders 
-}));
-
-app.get('/api/files/download/:filename(*)', (req, res, next) => { next(); }, httpProxy(FILE_STORAGE_SERVICE_URL, {
+// File Storage
+app.use('/api/files', gatewayAuth, httpProxy(FILE_STORAGE_SERVICE_URL, {
+    ...proxyOptions,
     proxyReqPathResolver: req => req.originalUrl.replace('/api/files', ''),
-    proxyReqOptDecorator: setUserHeaders
-}));
-
-app.use('/api/files', authenticateGateway, httpProxy(FILE_STORAGE_SERVICE_URL, {
-    proxyReqPathResolver: req => req.originalUrl.replace('/api/files', ''),
-    proxyReqOptDecorator: setUserHeaders,
     parseReqBody: false
 }));
 
+// Frontend static & views
 app.use('/public', httpProxy(FRONTEND_EJS_SERVICE_URL, { proxyReqPathResolver: req => req.url }));
 app.use('/uploads', httpProxy(FRONTEND_EJS_SERVICE_URL, { proxyReqPathResolver: req => req.url }));
 
-app.use('/', authenticateGateway, httpProxy(FRONTEND_EJS_SERVICE_URL, {
+app.use('/', gatewayAuth, httpProxy(FRONTEND_EJS_SERVICE_URL, {
+    ...proxyOptions,
     proxyReqPathResolver: req => req.url,
-    proxyReqOptDecorator: (proxyReqOpts, originalReq) => {
-        proxyReqOpts = setUserHeaders(proxyReqOpts, originalReq);
-        proxyReqOpts.headers['X-Google-Maps-API-Key'] = GOOGLE_MAPS_API_KEY || '';
-        return proxyReqOpts;
+    proxyReqOptDecorator: (opts, req) => {
+        const decorated = proxyOptions.proxyReqOptDecorator(opts, req);
+        decorated.headers['x-google-maps-api-key'] = GOOGLE_MAPS_API_KEY || '';
+        return decorated;
     }
 }));
 
-app.listen(port, () => { console.log(`API Gateway running on port ${port}`); });
+app.listen(port, () => { console.log(`API Gateway live on port ${port}`); });
