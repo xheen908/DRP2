@@ -4,9 +4,9 @@ const sequelize = require('../config/sequelize');
 const { Op } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
-const PDFDocument = require('pdfkit');
 const FormData = require('form-data');
 const moment = require('moment-timezone');
+const { generateGermanPayslipPDF } = require('../utils/pdfGenerator');
 
 // Service Configuration
 const FILE_STORAGE_SERVICE_URL = process.env.FILE_STORAGE_SERVICE_URL || 'http://filestorage-service:3010';
@@ -22,7 +22,6 @@ let Payslip;
 exports.init = (payrollRunModel, payslipModel) => {
     PayrollRun = payrollRunModel;
     Payslip = payslipModel;
-    console.log("[Payroll Controller] Modelle initialisiert.");
 };
 
 // --- Helper Functions ---
@@ -110,33 +109,23 @@ async function calculateGermanPayroll(employeeData, shifts) {
     };
 
     let tr = { LSTLZZ: 0, SOLZLZZ: 0, KV_AN: 0, RV_AN: 0, AV_AN: 0, PV_AN: 0, BK: 0 };
-    try { 
-        tr = await fetchTaxCalculation(taxParams); 
-    } catch (e) { 
-        console.error("Tax Engine Fallback applied"); 
-    }
+    try { tr = await fetchTaxCalculation(taxParams); } catch (e) {}
 
     const churchAmt = (tr.BK || 0) * (taxParams.R / 100);
-    const taxes = (tr.LSTLZZ + tr.SOLZLZZ + churchAmt) / 100;
-    const social = (tr.RV_AN + tr.KV_AN + tr.PV_AN + (tr.ALV_AN || tr.AV_AN || 0)) / 100;
+    const taxSum = (tr.LSTLZZ + tr.SOLZLZZ + churchAmt) / 100;
+    const svSum = (tr.RV_AN + tr.KV_AN + tr.PV_AN + (tr.ALV_AN || tr.AV_AN || 0)) / 100;
 
     return {
         grossSalary: totalGross || 0, 
-        netSalary: (totalGross - taxes - social) || 0,
-        taxAmount: taxes || 0, 
-        socialSecurityAmount: social || 0,
-        taxableGross: taxableGross || 0, 
-        overtimeHours: Math.max(tOver, Math.max(0, tNet - TARGET)) || 0, 
-        totalHours: tNet || 0, 
-        sfnSupplements: sfn.total || 0,
-        health: (tr.KV_AN / 100) || 0, 
-        pension: (tr.RV_AN / 100) || 0, 
-        unemp: ((tr.ALV_AN || tr.AV_AN || 0) / 100) || 0,
-        care: (tr.PV_AN / 100) || 0, 
-        church: (churchAmt / 100) || 0, 
-        soli: (tr.SOLZLZZ / 100) || 0, 
-        wageTax: (tr.LSTLZZ / 100) || 0,
-        basePay: taxableGross || 0
+        netSalary: totalGross - taxSum - svSum,
+        taxAmount: taxSum, 
+        socialSecurityAmount: svSum,
+        taxableGross, overtimeHours: Math.max(tOver, Math.max(0, tNet - TARGET)), 
+        totalHours: tNet, sfnSupplements: sfn.total,
+        nightHours: tNight, sundayHours: tSun,
+        health: tr.KV_AN / 100, pension: tr.RV_AN / 100, unemp: (tr.ALV_AN || tr.AV_AN || 0) / 100,
+        care: tr.PV_AN / 100, church: churchAmt / 100, soli: tr.SOLZLZZ / 100, wageTax: tr.LSTLZZ / 100,
+        basePay: taxableGross, hourlyWage: WAGE
     };
 }
 
@@ -174,7 +163,8 @@ exports.calculatePayrollRun = async (req, res) => {
 
         await Payslip.destroy({ where: { payrollRunId: run.id } });
         const created = await Payslip.bulkCreate(slips);
-        for (const s of created) { try { await exports.generateAndUploadPayslipPDF(s.id, req); } catch (e) { console.error("PDF Fail:", e.message); } }
+        const allCreated = await Payslip.findAll({ where: { payrollRunId: run.id } });
+        for (const s of allCreated) { try { await exports.generateAndUploadPayslipPDF(s.id, req); } catch (e) {} }
 
         await run.update({ status: 'Calculated', totalGrossSalary: gSum, totalNetSalary: nSum, calculationDate: new Date() });
         res.status(200).json({ message: 'OK', totalGross: gSum, totalNet: nSum });
@@ -188,119 +178,6 @@ exports.updatePayrollRunStatus = async (req, res) => { try { const run = await P
 exports.deletePayrollRun = async (req, res) => { try { await Payslip.destroy({ where: { payrollRunId: req.params.id } }); await PayrollRun.destroy({ where: { id: req.params.id } }); res.status(204).send(); } catch (e) { res.status(500).json({ message: e.message }); } };
 exports.getEmployeePayslips = async (req, res) => { try { const slips = await Payslip.findAll({ where: { employeeId: req.params.employeeId }, include: [{ model: PayrollRun, as: 'payrollRun' }] }); res.status(200).json(slips); } catch (e) { res.status(500).json({ message: e.message }); } };
 exports.getSinglePayslip = async (req, res) => { try { const slip = await Payslip.findByPk(req.params.id, { include: [{ model: PayrollRun, as: 'payrollRun' }] }); res.status(200).json(slip); } catch (e) { res.status(500).json({ message: e.message }); } };
-
-// --- PDF Engine ---
-
-const ML = 25, PW = 545.28, RH = 10.5;
-
-const BR_COLS = [
-    { label: 'Lohnart', x: ML, width: 35, align: 'left' },
-    { label: 'Bezeichnung', x: ML + 35, width: 90, align: 'left' },
-    { label: 'Einheit', x: ML + 125, width: 30, align: 'left' },
-    { label: 'Menge', x: ML + 155, width: 35, align: 'left' },
-    { label: 'Faktor', x: ML + 190, width: 35, align: 'left' },
-    { label: 'Prozentsatz', x: ML + 225, width: 55, align: 'left' },
-    { label: 'St', x: ML + 280, width: 15, align: 'center' },
-    { label: 'SV', x: ML + 295, width: 15, align: 'center' },
-    { label: 'GB', x: ML + 310, width: 15, align: 'center' },
-    { label: 'Betrag', x: ML + 325, width: 70, align: 'right' }
-];
-
-async function generateGermanPayslipPDF(data) {
-    return new Promise((resolve) => {
-        const doc = new PDFDocument({ size: 'A4', margins: { top: 25, bottom: 20, left: ML, right: ML }, font: 'Helvetica' });
-        let buffers = []; doc.on('data', buffers.push.bind(buffers)); doc.on('end', () => resolve(Buffer.concat(buffers)));
-
-        const drawLine = (x1, y1, x2, y2) => doc.lineWidth(0.5).moveTo(x1, y1).lineTo(x2, y2).stroke();
-        const drawBox = (x, y, w, h) => doc.lineWidth(0.5).rect(x, y, w, h).stroke();
-        const addText = (t, x, y, opt = {}) => doc.fontSize(opt.fontSize || 7.5).text(t || '', x, y, { width: opt.width || 100, align: opt.align || 'left', ...opt });
-
-        function drawHeaderAndInfo(d) {
-            let currentY = doc.y;
-            addText('Abrechnung der Brutto/Netto-Bezüge', ML, currentY, { width: 150, fontSize: 8 });
-            addText(`für ${d.month} ${d.year}`, ML + 150, currentY, { fontSize: 8 });
-            addText(d.date, ML + PW - 70, currentY, { fontSize: 8, align: 'right' });
-            currentY += 10; drawLine(ML, currentY, ML + PW, currentY); currentY += 4;
-
-            drawBox(ML, currentY, 260, 40); drawBox(ML + 270, currentY, PW - 270, 40);
-            addText('Personal-Nr.', ML + 4, currentY + 4); addText(d.personalNr, ML + 65, currentY + 4);
-            addText('SV-Nummer', ML + 4, currentY + 4 + RH); addText(d.svNumber, ML + 65, currentY + 4 + RH);
-            addText('Krankenkasse', ML + 4, currentY + 4 + RH * 2); addText(d.krankenkasse, ML + 65, currentY + 4 + RH * 2);
-
-            let rBX = ML + 270 + 4;
-            drawLine(rBX + 25, currentY, rBX + 25, currentY + 40); 
-            drawLine(rBX + 60, currentY, rBX + 60, currentY + 40); 
-            drawLine(rBX + 110, currentY, rBX + 110, currentY + 40);
-            addText('KK%', rBX + 2, currentY + 4); addText('PGRS', rBX + 30, currentY + 4); addText('BGRS', rBX + 65, currentY + 4); addText('St-Tg', rBX + 115, currentY + 4);
-            addText('157', rBX + 2, currentY + 4 + RH); addText('101', rBX + 30, currentY + 4 + RH); addText('1111', rBX + 65, currentY + 4 + RH); addText('30', rBX + 115, currentY + 4 + RH);
-            addText('Eintritt', rBX + 2, currentY + 4 + RH * 2); addText(d.eintritt, rBX + 45, currentY + 4 + RH * 2);
-
-            currentY += 48;
-            drawBox(ML + 270, currentY, PW - 270, 45);
-            doc.fontSize(7).font('Helvetica-Bold').text(d.employerName, ML + 4, currentY + 2);
-            doc.fontSize(7.5).font('Helvetica');
-            addText(d.employeeName, ML + 4, currentY + 15 + RH);
-            addText(d.addr1, ML + 4, currentY + 15 + RH * 2);
-            addText(d.addr2, ML + 4, currentY + 15 + RH * 3);
-            return currentY + 65;
-        }
-
-        function drawBruttoTable(d, startY) {
-            addText('Brutto-Bezüge', ML, startY, { fontSize: 9 });
-            let y = startY + 12;
-            BR_COLS.forEach(c => addText(c.label, c.x, y, { width: c.width, align: c.align, font: 'Helvetica-Bold' }));
-            y += 12; drawLine(ML, y, ML + 400, y); y += 2;
-            d.bruttoItems.forEach(i => {
-                addText(i.lohnart, BR_COLS[0].x, y);
-                addText(i.label, BR_COLS[1].x, y, { width: 120 });
-                addText(i.st, BR_COLS[6].x, y, { align: 'center' });
-                addText(i.sv, BR_COLS[7].x, y, { align: 'center' });
-                addText(i.gb, BR_COLS[8].x, y, { align: 'center' });
-                addText(i.val, BR_COLS[9].x, y, { align: 'right' });
-                y += RH;
-            });
-            const bxX = ML + PW - 100;
-            drawBox(bxX, startY + 12, 100, 35);
-            addText('Gesamt-Brutto', bxX + 5, startY + 16, { font: 'Helvetica-Bold' });
-            addText(d.totalGross, bxX + 5, startY + 30, { align: 'right', font: 'Helvetica-Bold', width: 90 });
-            return y + 15;
-        }
-
-        function drawSteuerSV(d, startY) {
-            addText('Steuer/Sozialversicherung', ML, startY, { fontSize: 9 });
-            let y = startY + 12;
-            const sCols = [{l:'St¹',x:ML,w:25},{l:'Steuer-Brutto',x:ML+25,w:70},{l:'Lohnsteuer',x:ML+95,w:60},{l:'Soli',x:ML+215,w:80}];
-            sCols.forEach(c => addText(c.l, c.x, y, { width: c.w, align: 'right', font: 'Helvetica-Bold' }));
-            y += 12; drawLine(ML, y, ML + 300, y); y += 2;
-            addText('L', ML, y, { align: 'center', width: 25 });
-            addText(d.totalGross, ML + 25, y, { align: 'right', width: 70 });
-            addText(d.wageTax, ML + 95, y, { align: 'right', width: 60 });
-            addText(d.soli, ML + 215, y, { align: 'right', width: 80 });
-            
-            const bxX = ML + PW - 100;
-            drawBox(bxX, startY + 12, 100, 35);
-            addText('Netto-Verdienst', bxX + 5, startY + 16);
-            addText(d.netVerdienst, bxX + 5, startY + 30, { align: 'right', font: 'Helvetica-Bold', width: 90 });
-            return y + 40;
-        }
-
-        let yLine = drawHeaderAndInfo(data);
-        yLine = drawBruttoTable(data, yLine);
-        yLine = drawSteuerSV(data, yLine);
-
-        const bxX = ML + PW - 100;
-        drawBox(bxX, yLine, 100, 35);
-        addText('Auszahlungsbetrag', bxX + 5, yLine + 4, { font: 'Helvetica-Bold' });
-        addText(data.netAuszahlung, bxX + 5, yLine + 18, { align: 'right', font: 'Helvetica-Bold', fontSize: 10, width: 90 });
-
-        yLine += 50;
-        addText('Bank: ' + data.bank, ML, yLine);
-        addText('IBAN: ' + data.iban, ML, yLine + RH);
-        addText('¹ Steuerklasse | ² SV-Kennzeichen (L=laufend)', ML, doc.page.height - 25, { fontSize: 6 });
-
-        doc.end();
-    });
-}
 
 exports.generateAndUploadPayslipPDF = async (id, req) => {
     const payslip = await Payslip.findByPk(id, { include: [{ model: PayrollRun, as: 'payrollRun' }] });
@@ -324,21 +201,28 @@ exports.generateAndUploadPayslipPDF = async (id, req) => {
         addr1: `${addr.street || ''} ${addr.houseNumber || ''}`,
         addr2: `${addr.zipCode || ''} ${addr.city || ''}`,
         totalGross: (calc.grossSalary || 0).toFixed(2).replace('.', ','),
-        wageTax: (calc.wageTax || 0).toFixed(2).replace('.', ','),
-        soli: (calc.soli || 0).toFixed(2).replace('.', ','),
+        lohnsteuer: (calc.wageTax || 0).toFixed(2).replace('.', ','),
+        churchTax: (calc.church || 0).toFixed(2).replace('.', ','),
+        soliZuschlag: (calc.soli || 0).toFixed(2).replace('.', ','),
+        kvBeitrag: (calc.health || 0).toFixed(2).replace('.', ','),
+        rvBeitrag: (calc.pension || 0).toFixed(2).replace('.', ','),
+        avBeitrag: (calc.unemp || 0).toFixed(2).replace('.', ','),
+        pvBeitrag: (calc.care || 0).toFixed(2).replace('.', ','),
+        sumAbzuege: (calc.taxAmount + calc.socialSecurityAmount).toFixed(2).replace('.', ','),
         netVerdienst: (calc.netSalary || 0).toFixed(2).replace('.', ','),
         netAuszahlung: (calc.netSalary || 0).toFixed(2).replace('.', ','),
         bank: emp.bankDetails?.bankName || 'N/A',
         iban: emp.bankDetails?.iban || 'N/A',
         bruttoItems: [
-            { lohnart: '2000', label: 'Gehalt', st: payslip.taxClass || '1', sv: 'L', gb: 'J', val: (calc.basePay || 0).toFixed(2).replace('.', ',') },
-            { lohnart: '2010', label: `Überstunden (${(calc.overtimeHours || 0).toFixed(2)}h)`, st: '1', sv: 'L', gb: 'J', val: 'inkl.' },
-            { lohnart: '3000', label: 'SFN-Zuschläge', st: 'F', sv: 'L', gb: 'J', val: (calc.sfnSupplements || 0).toFixed(2).replace('.', ',') }
-        ]
+            { lohnart: '2000', bezeichnung: 'Gehalt', st: payslip.taxClass || '1', sv: 'L', gb: 'J', einheit: 'Std', menge: calc.totalHours.toFixed(2).replace('.', ','), faktor: calc.hourlyWage.toFixed(2).replace('.', ','), val: calc.basePay.toFixed(2).replace('.', ',') },
+            { lohnart: '2010', bezeichnung: 'Überstunden', st: '1', sv: 'L', gb: 'J', einheit: 'Std', menge: calc.overtimeHours.toFixed(2).replace('.', ','), faktor: calc.hourlyWage.toFixed(2).replace('.', ','), val: 'inkl.' },
+            { lohnart: '3000', bezeichnung: 'SFN-Zuschläge', st: 'F', sv: 'L', gb: 'J', val: calc.sfnSupplements.toFixed(2).replace('.', ',') }
+        ],
+        page: '1', payrollPeriodStart: moment(payslip.payrollPeriodStart).format('DD.MM.YYYY'), payrollPeriodEnd: moment(payslip.payrollPeriodEnd).format('DD.MM.YYYY')
     };
 
     const pdfBuffer = await generateGermanPayslipPDF(pdfData);
-    const fileName = `Abrechnung_${emp.lastName}_${id}.pdf`;
+    const fileName = `Abrechnung_${id}.pdf`;
     const form = new FormData();
     form.append('file', pdfBuffer, { filename: fileName, contentType: 'application/pdf' });
 

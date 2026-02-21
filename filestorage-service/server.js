@@ -166,9 +166,9 @@ app.post('/upload/:targetFolder(*)', authorize(['admin', 'Manager']), upload.sin
     });
 
     if (code === 0) {
-      // Generiere den direkten S3-Link und den Gateway-Link
+      // Generiere den direkten S3-Link und den relativen Gateway-Link
       const s3DirectLink = `${S3_ENDPOINT}/${RCLONE_BUCKET_NAME}/${remoteFileName}`;
-      const apiGatewayDownloadLink = `${API_GATEWAY_URL}/api/files/download/${remoteFileName}`;
+      const apiGatewayDownloadLink = `/api/files/download/${remoteFileName}`;
 
       res.status(200).json({
         message: `Datei ${remoteFileName} erfolgreich hochgeladen.`,
