@@ -4,306 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DRP Mitarbeiter Verwaltung</title>
-    <script src="https://cdn.tailwindcss.com"></script> <!-- Tailwind CSS CDN hinzufügen -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        /* CSS für den Header wird hier belassen, da es global sein soll */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-        }
-        header {
-            background-color: #333;
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            position: relative;
-            z-index: 1000;
-        }
-        .app-title {
-            font-size: 1.5em;
-            font-weight: bold;
-        }
-        .burger-menu {
-            font-size: 2em;
-            cursor: pointer;
-            padding: 5px;
-            user-select: none;
-        }
-        header .dropdown-menu { /* Spezifische Regel für das Dropdown im Header */
-            display: none;
-            position: absolute;
-            top: 100%;
-            right: 0;
-            background-color: #444;
-            min-width: 160px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 999;
-            border-radius: 0 0 5px 5px;
-            overflow: hidden;
-        }
-        header .dropdown-menu.show {
-            display: block;
-        }
-        .dropdown-menu button {
-            color: white;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-            width: 100%;
-            text-align: left;
-            background-color: transparent;
-            border: none;
-            cursor: pointer;
-            font-size: 1em;
-            margin: 0;
-            border-radius: 0;
-        }
-        .dropdown-menu button:hover {
-            background-color: #575757;
-        }
-        .dropdown-menu a { /* Auch für Links im Menü */
-            color: white;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-            width: 100%;
-            text-align: left;
-            background-color: transparent;
-            border: none;
-            cursor: pointer;
-            font-size: 1em;
-            margin: 0;
-            border-radius: 0;
-        }
-        .dropdown-menu a:hover {
-            background-color: #575757;
-        }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
+        header { background-color: #333; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; z-index: 1000; }
+        .app-title { font-size: 1.5em; font-weight: bold; }
+        .burger-menu { font-size: 2em; cursor: pointer; padding: 5px; user-select: none; }
+        header .dropdown-menu { display: none; position: absolute; top: 100%; right: 0; background-color: #444; min-width: 160px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 999; border-radius: 0 0 5px 5px; overflow: hidden; }
+        header .dropdown-menu.show { display: block; }
+        .dropdown-menu button, .dropdown-menu a { color: white; padding: 12px 16px; text-decoration: none; display: block; width: 100%; text-align: left; background-color: transparent; border: none; cursor: pointer; font-size: 1em; margin: 0; border-radius: 0; }
+        .dropdown-menu button:hover, .dropdown-menu a:hover { background-color: #575757; }
 
-        /* Grundlegendes Modal-Styling (aus custom.css oder hier definiert) */
-        .modal {
-            display: none; /* Standardmäßig versteckt */
-            position: fixed; /* Bleibt über allem */
-            z-index: 1000; /* Ganz vorne */
-            left: 0;
-            top: 0;
-            width: 100%; /* Volle Breite */
-            height: 100%; /* Volle Höhe */
-            overflow: auto; /* Scrollbar, wenn nötig */
-            background-color: rgba(0,0,0,0.4); /* Dunkler Hintergrund */
-            align-items: flex-start; /* Oben ausrichten */
-            justify-content: center; /* Zentriert horizontal */
-            padding-top: 50px; /* Etwas Abstand nach oben */
-            padding-bottom: 50px; /* Etwas Abstand nach unten */
-        }
-        .modal-content {
-            background-color: #fefefe;
-            margin: auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 95%; /* Breiter für die neuen Felder */
-            max-width: 900px; /* Max. Breite erhöht */
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            position: relative;
-        }
-        /* Spezielles Styling für das User-Formular-Modal */
-        #user-form-modal .modal-content {
-            max-width: 950px; /* Noch breiter für die HR-Felder */
-            padding: 20px;
-        }
-        #user-form-modal .modal-content h3 {
-            font-size: 1.5rem; /* Titel etwas größer */
-            margin-bottom: 1.5rem;
-        }
-        #user-form-modal .modal-content label {
-            font-size: 0.9rem; /* Labels etwas größer */
-        }
-        #user-form-modal .modal-content input,
-        #user-form-modal .modal-content select,
-        #user-form-modal .modal-content textarea {
-            font-size: 1rem; /* Input-Felder Standardgröße */
-            padding: 0.5rem 0.75rem; /* Standard Padding */
-        }
-        /* NEU: Grid für Formularfelder */
-        #user-form.grid-container {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr); /* Zwei Spalten */
-            gap: 1rem; /* Abstand zwischen den Feldern */
-        }
-        #user-form .full-width {
-            grid-column: span 2; /* Feld über beide Spalten */
-        }
-        /* Flexbox für assoziierte Daten-Sektionen */
-        .associated-data-section {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            border: 1px solid #e0e0e0;
-            border-radius: 5px;
-            padding: 15px;
-            margin-top: 1rem;
-            background-color: #f9f9f9;
-        }
-        .associated-data-item {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.5rem;
-            padding: 0.75rem;
-            border: 1px solid #eee;
-            border-radius: 4px;
-            background-color: #fff;
-            position: relative;
-        }
-        .associated-data-item .full-width {
-            grid-column: span 2;
-        }
-        .remove-item-button {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background-color: #ef4444; /* red-500 */
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 25px;
-            height: 25px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 1rem;
-            line-height: 1;
-        }
-        .add-item-button {
-            margin-top: 0.75rem;
-            padding: 0.5rem 1rem;
-            background-color: #3b82f6; /* blue-500 */
-            color: white;
-            border-radius: 0.375rem;
-            font-weight: 500;
-            cursor: pointer;
-            border: none;
-        }
-
-
-        /* Spezielles Styling für das Barcode-Modal, wenn nötig */
-        #barcode-modal .modal-content {
-            max-width: 400px; /* Kleinere Breite für Barcode */
-            text-align: center;
-        }
-        /* NEU: Zentrierung des SVG-Barcodes innerhalb des Modals */
-        #barcode-modal .modal-content svg {
-            display: block; /* Ermöglicht margin: auto */
-            margin: 0 auto; /* Zentriert das SVG horizontal */
-        }
-        .close-button {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            position: absolute;
-            top: 10px;
-            right: 20px;
-        }
-        .close-button:hover,
-        .close-button:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
-        }
-        .overflow-x-auto {
-            overflow-x: auto;
-        }
-        .min-w-full {
-            min-width: 100%;
-        }
-        /* Tailwind-ähnliche Klassen für Basis-Stile, falls custom.css diese nicht hat */
-        .bg-white { background-color: #fff; }
-        .bg-gray-100 { background-color: #f3f4f6; }
-        .border-collapse { border-collapse: collapse; }
-        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
-        .rounded-lg { border-radius: 0.5rem; }
-        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-        .px-4 { padding-left: 1rem; padding-right: 1rem; }
-        .text-left { text-align: left; }
-        .text-sm { font-size: 0.875rem; }
-        .font-semibold { font-weight: 600; }
-        .text-gray-600 { color: #4b5563; }
-        .border-b { border-bottom-width: 1px; border-color: #e5e7eb; }
-        .hover\:bg-gray-50:hover { background-color: #f9fafb; }
-        .text-gray-800 { color: #1f2937; }
-        .text-blue-600 { color: #2563eb; }
-        .hover\:text-blue-800:hover { color: #1e40af; }
-        .text-red-600 { color: #dc2626; }
-        .hover\:text-red-800:hover { color: #991b1b; }
-        .font-medium { font-weight: 500; }
-        .mr-2 { margin-right: 0.5rem; }
-        .mt-4 { margin-top: 1rem; }
-        .px-4 { padding-left: 1rem; padding-right: 1rem; }
-        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-        .bg-green-500 { background-color: #22c55e; }
-        .text-white { color: #fff; }
-        .rounded-md { border-radius: 0.375rem; }
-        .hover\:bg-green-600:hover { background-color: #16a34a; }
-        .text-center { text-align: center; }
-        .text-gray-500 { color: #6b7280; }
-        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
-        .space-y-4 > *:not(:last-child) { margin-bottom: 1rem; }
-        .block { display: block; }
-        .w-full { width: 100%; }
-        .p-2 { padding: 0.5rem; }
-        .border { border-width: 1px; }
-        .border-gray-300 { border-color: #d1d5db; }
-        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
-        .text-gray-700 { color: #374151; }
-        .flex { display: flex; }
-        .justify-end { justify-content: flex-end; }
-        .space-x-2 > *:not(:first-child) { margin-left: 0.5rem; }
-        .bg-gray-300 { background-color: #d1d5db; }
-        .text-gray-800 { color: #1f2937; }
-        .hover\:bg-gray-400:hover { background-color: #9ca3af; }
-        .bg-blue-500 { background-color: #3b82f6; }
-        .hover\:bg-blue-600:hover { background-color: #2563eb; }
-        .ml-2 { margin-left: 0.5rem; }
-        .h-4 { height: 1rem; }
-        .w-4 { width: 1rem; }
-        .text-blue-600 { color: #2563eb; }
-        .rounded { border-radius: 0.25rem; }
-        .items-center { align-items: center; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); align-items: flex-start; justify-content: center; padding-top: 50px; padding-bottom: 50px; }
+        .modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 95%; max-width: 950px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); position: relative; }
+        #user-form.grid-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+        .full-width { grid-column: span 2; }
+        .associated-data-section { border: 1px solid #e0e0e0; border-radius: 5px; padding: 15px; margin-top: 1rem; background-color: #f9f9f9; }
+        .associated-data-item { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; padding: 0.75rem; border: 1px solid #eee; border-radius: 4px; background-color: #fff; position: relative; }
+        .remove-item-button { position: absolute; top: 5px; right: 5px; background-color: #ef4444; color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        .add-item-button { margin-top: 0.75rem; padding: 0.5rem 1rem; background-color: #3b82f6; color: white; border-radius: 0.375rem; cursor: pointer; border: none; font-weight: 500; }
         
-        /* Dashboard-Container-Stil (übernommen vom Dashboard) */
-        .dashboard-container {
-            background-color: #fff;
-            padding: 30px;
-            margin: 20px auto; /* Behält 20px horizontalen Abstand */
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            max-width: 1200px; /* Begrenzung wie im dashboard.ejs für den Container */
-        }
-        /* Überschrift im Container anpassen */
-        .dashboard-container h1 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 1.5em; /* Match h1 in dashboard.ejs */
-            font-weight: bold; /* Match h1 in dashboard.ejs */
-        }
-
-        /* Neuer Stil: Macht die klickbaren Elemente in der Tabelle erkennbar */
-        .clickable-cell {
-            cursor: pointer;
-            text-decoration: underline;
-            text-decoration-color: #2563eb;
-            text-underline-offset: 2px;
-        }
-        .clickable-cell:hover {
-            text-decoration-color: #1e40af;
-        }
+        .dashboard-container { background-color: #fff; padding: 30px; margin: 20px auto; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 1200px; }
+        .dashboard-container h1 { color: #333; margin-bottom: 20px; font-size: 1.5em; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -315,1083 +38,376 @@
             <p class="text-center text-gray-500 py-4">Benutzer werden geladen...</p>
         </div>
         
-        <button id="add-user-button" class="mt-4 px-4 py-2 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600">Neuen Benutzer hinzufügen</button>
+        <button id="add-user-button" class="mt-4 px-4 py-2 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600">Neuen Mitarbeiter anlegen</button>
 
-        <!-- Modal für Benutzer erstellen/bearbeiten (jetzt auch mit Passwort-Optionen und HR-Feldern) -->
+        <!-- Mitarbeiter Formular Modal -->
         <div id="user-form-modal" class="modal">
             <div class="modal-content">
                 <span class="close-button" onclick="cancelUserForm()">×</span>
-                <h3 id="form-title">Benutzer erstellen</h3>
+                <h3 id="form-title" class="text-xl font-bold mb-4 border-b pb-2">Mitarbeiter bearbeiten</h3>
                 <form id="user-form" class="grid-container">
-                    <div class="full-width">
-                        <label for="firstName" class="block text-sm font-medium text-gray-700">Vorname</label>
-                        <input type="text" id="firstName" name="firstName" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    <!-- Sektion 1: Basisdaten -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase">Vorname</label>
+                        <input type="text" id="firstName" name="firstName" required class="mt-1 block w-full p-2 border rounded shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase">Nachname</label>
+                        <input type="text" id="lastName" name="lastName" required class="mt-1 block w-full p-2 border rounded shadow-sm">
                     </div>
                     <div class="full-width">
-                        <label for="lastName" class="block text-sm font-medium text-gray-700">Nachname</label>
-                        <input type="text" id="lastName" name="lastName" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                        <label class="block text-xs font-bold text-gray-500 uppercase">E-Mail Adresse</label>
+                        <input type="email" id="email" name="email" required class="mt-1 block w-full p-2 border rounded shadow-sm">
                     </div>
-                    <div class="full-width">
-                        <label for="email" class="block text-sm font-medium text-gray-700">E-Mail</label>
-                        <input type="email" id="email" name="email" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase">System PIN</label>
+                        <input type="text" id="userPin" name="pin" class="mt-1 block w-full p-2 border rounded shadow-sm font-mono" placeholder="Wird automatisch generiert">
                     </div>
-                    <div class="full-width">
-                        <label for="userPin" class="block text-sm font-medium text-gray-700">PIN</label>
-                        <input type="text" id="userPin" name="pin" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" pattern="[0-9]{6,10}" title="PIN muss 6 bis 10 Ziffern enthalten">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase">Passwort</label>
+                        <input type="password" id="userPassword" name="password" class="mt-1 block w-full p-2 border rounded shadow-sm" placeholder="Nur bei Änderung ausfüllen">
                     </div>
                     
-                    <div>
-                        <label for="gender" class="block text-sm font-medium text-gray-700">Geschlecht</label>
-                        <select id="gender" name="gender" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                            <option value="">Bitte auswählen</option>
-                            <option value="Männlich">Männlich</option>
-                            <option value="Weiblich">Weiblich</option>
-                            <option value="Divers">Divers</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="maritalStatus" class="block text-sm font-medium text-gray-700">Familienstand</label>
-                        <select id="maritalStatus" name="maritalStatus" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                            <option value="">Bitte auswählen</option>
-                            <option value="Ledig">Ledig</option>
-                            <option value="Verheiratet">Verheiratet</option>
-                            <option value="Geschieden">Geschieden</option>
-                            <option value="Verwitwet">Verwitwet</option>
-                            <option value="Eingetragene Partnerschaft">Eingetragene Partnerschaft</option>
-                            <option value="Unbekannt">Unbekannt</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="nationality" class="block text-sm font-medium text-gray-700">Nationalität</label>
-                        <input type="text" id="nationality" name="nationality" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                    <div>
-                        <label for="dateOfBirth" class="block text-sm font-medium text-gray-700">Geburtsdatum</label>
-                        <input type="date" id="dateOfBirth" name="dateOfBirth" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                    <div>
-                        <label for="privatePhone" class="block text-sm font-medium text-gray-700">Private Telefonnummer</label>
-                        <input type="text" id="privatePhone" name="privatePhone" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                    <div>
-                        <label for="dateOfHire" class="block text-sm font-medium text-gray-700">Einstellungsdatum</label>
-                        <input type="date" id="dateOfHire" name="dateOfHire" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                    <div>
-                        <label for="department" class="block text-sm font-medium text-gray-700">Abteilung</label>
-                        <input type="text" id="department" name="department" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                    <div>
-                        <label for="workLocation" class="block text-sm font-medium text-gray-700">Arbeitsort</label>
-                        <input type="text" id="workLocation" name="workLocation" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                    <div>
-                        <label for="workScheduleType" class="block text-sm font-medium text-gray-700">Arbeitszeitmodell</label>
-                        <select id="workScheduleType" name="workScheduleType" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                            <option value="">Bitte auswählen</option>
-                            <option value="Vollzeit">Vollzeit</option>
-                            <option value="Teilzeit">Teilzeit</option>
-                            <option value="Schichtarbeit">Schichtarbeit</option>
-                            <option value="Gleitzeit">Gleitzeit</option>
-                            <option value="Minijob">Minijob</option>
-                            <option value="Werkstudent">Werkstudent</option>
-                            <option value="Praktikum">Praktikum</option>
-                            <option value="Ausbildung">Ausbildung</option>
-                            <option value="Unbekannt">Unbekannt</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="annualLeaveEntitlement" class="block text-sm font-medium text-gray-700">Jährlicher Urlaubsanspruch (Tage)</label>
-                        <input type="number" id="annualLeaveEntitlement" name="annualLeaveEntitlement" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                    <div>
-                        <label for="salary" class="block text-sm font-medium text-gray-700">Gehalt</label>
-                        <input type="number" step="0.01" id="salary" name="salary" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                    <div>
-                        <label for="employeeStatus" class="block text-sm font-medium text-gray-700">HR Status</label>
-                        <select id="employeeStatus" name="status" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                            <option value="active">Aktiv</option>
-                            <option value="inactive">Inaktiv</option>
-                            <option value="on_leave">Beurlaubt</option>
-                            <option value="terminated">Gekündigt</option>
-                        </select>
-                    </div>
-
-                    <!-- Rolle-Dropdown -->
-                    <div>
-                        <label for="userRole" class="block text-sm font-medium text-gray-700">Rolle</label>
-                        <select id="userRole" name="roleId" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                            <!-- Rollen werden dynamisch geladen -->
-                        </select>
-                    </div>
-
-                    <!-- NEUE SEKTION: Adressen -->
-                    <div class="full-width associated-data-section">
-                        <h4 class="font-semibold text-gray-800">Adressen</h4>
-                        <div id="addresses-container">
-                            <!-- Adressen werden hier dynamisch hinzugefügt -->
+                    <div class="full-width grid grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Rolle</label>
+                            <select id="userRole" name="roleId" required class="mt-1 block w-full p-2 border rounded shadow-sm"></select>
                         </div>
-                        <button type="button" class="add-item-button" onclick="addAddressField()">Adresse hinzufügen</button>
-                    </div>
-
-                    <!-- NEUE SEKTION: Bankverbindung -->
-                    <div class="full-width associated-data-section">
-                        <h4 class="font-semibold text-gray-800">Bankverbindung</h4>
-                        <div id="bankDetails-container">
-                            <!-- Bankdetails werden hier dynamisch hinzugefügt (typischerweise nur eine) -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Abteilung</label>
+                            <input type="text" id="department" name="department" class="mt-1 block w-full p-2 border rounded shadow-sm">
                         </div>
-                        <button type="button" class="add-item-button" onclick="addBankDetailsField()">Bankverbindung hinzufügen</button>
-                    </div>
-                    
-                    <!-- NEUE SEKTION: Steuer- und Sozialversicherungsdaten -->
-                    <div class="full-width associated-data-section">
-                        <h4 class="font-semibold text-gray-800">Steuer- und Sozialversicherungsdaten</h4>
-                        <div id="taxSocialSecurity-container">
-                            <!-- Steuerdaten werden hier dynamisch hinzugefügt (typischerweise nur eine) -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Stundenlohn (€)</label>
+                            <input type="number" step="0.01" id="salary" name="salary" class="mt-1 block w-full p-2 border rounded shadow-sm">
                         </div>
-                        <button type="button" class="add-item-button" onclick="addTaxSocialSecurityField()">Steuerdaten hinzufügen</button>
-                    </div>
-
-                    <!-- NEUE SEKTION: Notfallkontakte -->
-                    <div class="full-width associated-data-section">
-                        <h4 class="font-semibold text-gray-800">Notfallkontakte</h4>
-                        <div id="emergencyContacts-container">
-                            <!-- Notfallkontakte werden hier dynamisch hinzugefügt -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Monatssoll (h)</label>
+                            <input type="number" step="0.5" id="targetHours" name="target_hours_monthly" class="mt-1 block w-full p-2 border rounded shadow-sm">
                         </div>
-                        <button type="button" class="add-item-button" onclick="addEmergencyContactField()">Notfallkontakt hinzufügen</button>
                     </div>
 
-
-                    <!-- Passwortfelder (jetzt ganz unten im Formular) -->
-                    <div id="password-field-group" class="full-width">
-                        <label for="userPassword" class="block text-sm font-medium text-gray-700">Passwort</label>
-                        <input type="password" id="userPassword" name="password" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                    <div class="full-width grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Geschlecht</label>
+                            <select id="gender" name="gender" class="mt-1 block w-full p-2 border rounded shadow-sm">
+                                <option value="">Auswählen</option>
+                                <option value="männlich">Männlich</option>
+                                <option value="weiblich">Weiblich</option>
+                                <option value="divers">Divers</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Familienstand</label>
+                            <select id="maritalStatus" name="maritalStatus" class="mt-1 block w-full p-2 border rounded shadow-sm">
+                                <option value="Ledig">Ledig</option>
+                                <option value="Verheiratet">Verheiratet</option>
+                                <option value="Geschieden">Geschieden</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Einstellungsdatum</label>
+                            <input type="date" id="dateOfHire" name="dateOfHire" class="mt-1 block w-full p-2 border rounded shadow-sm">
+                        </div>
                     </div>
-                    <div id="confirm-password-field-group" class="hidden full-width"> <!-- Bestätigungsfeld zunächst versteckt -->
-                        <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Passwort bestätigen</label>
-                        <input type="password" id="confirmPassword" name="confirmPassword" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+
+                    <!-- Sektion 2: Adressen -->
+                    <div class="full-width associated-data-section">
+                        <h4 class="font-bold text-gray-700 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Privatadresse
+                        </h4>
+                        <div id="addresses-container" class="mt-2"></div>
+                        <button type="button" class="add-item-button mt-2 text-xs" onclick="addAddressField()">+ Adresse hinzufügen</button>
                     </div>
 
-                    <div class="full-width flex justify-end space-x-2 mt-4">
-                        <button type="button" id="cancel-user-form" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Abbrechen</button>
-                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Speichern</button>
+                    <!-- Sektion 3: Bank -->
+                    <div class="full-width associated-data-section">
+                        <h4 class="font-bold text-gray-700 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                            Bankverbindung
+                        </h4>
+                        <div id="bankDetails-container" class="mt-2"></div>
+                        <button type="button" class="add-item-button mt-2 text-xs" onclick="addBankDetailsField()">+ Bankdaten hinzufügen</button>
+                    </div>
+
+                    <!-- Sektion 4: Steuer -->
+                    <div class="full-width associated-data-section">
+                        <h4 class="font-bold text-gray-700 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Steuer- und Sozialversicherungsdaten
+                        </h4>
+                        <div id="taxSocialSecurity-container" class="mt-2"></div>
+                        <button type="button" class="add-item-button mt-2 text-xs" onclick="addTaxSocialSecurityField()">+ Steuerdaten hinzufügen</button>
+                    </div>
+
+                    <div class="full-width flex justify-end space-x-3 mt-6 border-t pt-4">
+                        <button type="button" onclick="cancelUserForm()" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium">Abbrechen</button>
+                        <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold">Änderungen speichern</button>
                     </div>
                 </form>
             </div>
         </div>
 
-        <!-- NEUES MODAL FÜR BARCODE -->
-        <div id="barcode-modal" class="modal">
-            <div class="modal-content">
-                <span class="close-button" onclick="closeBarcodeModal()">×</span>
-                <h3 id="barcode-modal-title" class="text-lg font-bold mb-4">Barcode der PIN</h3>
-                <svg id="barcode-svg"></svg>
-                <p class="mt-2 text-sm text-gray-600">PIN: <span id="barcode-value" class="font-semibold text-gray-800"></span></p>
-            </div>
-        </div>
-        <!-- ENDE BARCODE MODAL -->
-
         <!-- VPN Modal -->
         <div id="vpn-modal" class="modal">
-            <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-content" style="max-width: 450px; text-align: center;">
                 <span class="close-button" onclick="closeVpnModal()">×</span>
-                <h3 class="text-lg font-bold mb-4">VPN Zugang</h3>
-                <div id="vpn-qrcode-container" class="flex justify-center mb-4">
-                    <canvas id="vpn-qrcode"></canvas>
+                <h3 class="text-xl font-bold mb-4">WireGuard Konfiguration</h3>
+                <div id="vpn-qrcode-container" class="flex justify-center mb-6" style="background: white; padding: 15px; border: 1px solid #ddd; border-radius: 8px;"></div>
+                <div class="bg-gray-100 p-3 rounded mb-6 text-left border">
+                    <p class="text-[10px] font-mono break-all text-gray-700" id="vpn-config-preview"></p>
                 </div>
-                <div class="bg-gray-100 p-3 rounded mb-4">
-                    <p class="text-xs font-mono break-all" id="vpn-config-preview"></p>
-                </div>
-                <div class="flex justify-center space-x-4">
-                    <button onclick="downloadVpnConfig()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Download .conf</button>
-                    <button onclick="closeVpnModal()" class="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400">Schließen</button>
+                <div class="flex justify-center gap-3">
+                    <button onclick="downloadVpnConfig()" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold">Download .conf</button>
+                    <button onclick="closeVpnModal()" class="px-6 py-2 bg-gray-300 text-gray-800 rounded-lg font-medium">Schließen</button>
                 </div>
             </div>
         </div>
 
+        <!-- Barcode Modal -->
+        <div id="barcode-modal" class="modal">
+            <div class="modal-content" style="max-width: 400px; text-align: center;">
+                <span class="close-button" onclick="closeBarcodeModal()">×</span>
+                <h3 id="barcode-modal-title" class="text-lg font-bold mb-4 italic text-gray-700"></h3>
+                <div class="bg-white p-4 border-2 border-dashed border-gray-300 rounded-lg">
+                    <svg id="barcode-svg" class="mx-auto"></svg>
+                    <p id="barcode-value" class="mt-4 font-mono text-3xl tracking-widest text-blue-800 font-black"></p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.3/JsBarcode.all.min.js"></script>
     <script>
-        const loggedInUser = <%- JSON.stringify(user) %>; 
+        const loggedInUser = <%- JSON.stringify(user) %>;
         let allUsers = [];
         let allRoles = [];
-        let currentEditingUserId = null; 
+        let currentEditingUserId = null;
         let currentVpnConfig = "";
         let currentVpnUserName = "";
-        
-        const userListContainer = document.getElementById('user-list-container');
-        const addUserButton = document.getElementById('add-user-button');
-        const userFormModal = document.getElementById('user-form-modal');
-        const userForm = document.getElementById('user-form');
-        const formTitle = document.getElementById('form-title');
-        
-        // Auth Service Felder
-        const userPinInput = document.getElementById('userPin');
-        const userPasswordInput = document.getElementById('userPassword');
-        const confirmPasswordInput = document.getElementById('confirmPassword');
-        const userRoleSelect = document.getElementById('userRole');
-        
-        // Haupt HR Service Felder
-        const firstNameInput = document.getElementById('firstName');
-        const lastNameInput = document.getElementById('lastName');
-        const emailInput = document.getElementById('email');
-        const genderSelect = document.getElementById('gender');
-        const maritalStatusSelect = document.getElementById('maritalStatus'); // GEÄNDERT
-        const nationalityInput = document.getElementById('nationality');
-        const dateOfBirthInput = document.getElementById('dateOfBirth');
-        const privatePhoneInput = document.getElementById('privatePhone');
-        const dateOfHireInput = document.getElementById('dateOfHire');
-        const departmentInput = document.getElementById('department');
-        const workLocationInput = document.getElementById('workLocation');
-        const workScheduleTypeSelect = document.getElementById('workScheduleType'); // GEÄNDERT
-        const annualLeaveEntitlementInput = document.getElementById('annualLeaveEntitlement');
-        const salaryInput = document.getElementById('salary');
-        const employeeStatusSelect = document.getElementById('employeeStatus');
-
-        // Container für assoziierte Daten
-        const addressesContainer = document.getElementById('addresses-container');
-        const bankDetailsContainer = document.getElementById('bankDetails-container');
-        const taxSocialSecurityContainer = document.getElementById('taxSocialSecurity-container');
-        const emergencyContactsContainer = document.getElementById('emergencyContacts-container');
-
-
-        const cancelUserFormButton = document.getElementById('cancel-user-form');
-
-        const passwordFieldGroup = document.getElementById('password-field-group');
-        const confirmPasswordFieldGroup = document.getElementById('confirm-password-field-group');
-
-        const barcodeModal = document.getElementById('barcode-modal');
-        const barcodeModalTitle = document.getElementById('barcode-modal-title');
-        const barcodeSvg = document.getElementById('barcode-svg');
-        const barcodeValueSpan = document.getElementById('barcode-value');
-
-        const vpnModal = document.getElementById('vpn-modal');
-        const vpnQrCanvas = document.getElementById('vpn-qrcode');
-        const vpnPreview = document.getElementById('vpn-config-preview');
-
-        async function logout() {
-            try {
-                const response = await fetch('/api/auth/logout', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (response.ok) {
-                    window.location.href = '/';
-                } else {
-                    const errorData = await response.json();
-                    alert('Fehler beim Abmelden: ' + (errorData.message || 'Unbekannter Fehler'));
-                    console.error('Logout-Fehler-Antwort:', errorData);
-                }
-            } catch (error) {
-                console.error('Fehler beim Abmelden:', error);
-                alert('Netzwerkfehler beim Abmelden. Bitte versuchen Sie es erneut.');
-            }
-        }
 
         async function fetchUsers() {
             try {
-                const response = await fetch('/api/users', {
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        ...getAuthHeader() 
-                    }
-                });
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        window.location.href = '/';
-                        return;
-                    }
-                    throw new Error('Fehler beim Laden der Benutzer: ' + response.statusText);
-                }
+                const response = await fetch('/api/users', { headers: getAuthHeader() });
                 allUsers = await response.json();
                 renderUserList();
-            } catch (error) {
-                console.error('Fehler beim Abrufen der Benutzer:', error);
-                userListContainer.innerHTML = `<p class="text-center text-red-500 py-4">Fehler beim Laden der Benutzer: ${error.message}</p>`;
-            }
+            } catch (e) { console.error(e); }
         }
 
         async function fetchRoles() {
             try {
-                const response = await fetch('/api/users/roles', {
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        ...getAuthHeader() 
-                    }
-                });
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        window.location.href = '/';
-                        return;
-                    }
-                    throw new Error('Fehler beim Laden der Rollen: ' + response.statusText);
-                }
+                const response = await fetch('/api/users/roles', { headers: getAuthHeader() });
                 allRoles = await response.json();
-                console.log('[Frontend Debug] Geladene Rollen:', allRoles); 
-                renderRoleOptions();
-            } catch (error) {
-                console.error('Fehler beim Abrufen der Rollen:', error);
-            }
-        }
-
-        function renderRoleOptions() {
-            userRoleSelect.innerHTML = '<option value="">Bitte Rolle auswählen</option>'; // Standardoption
-            allRoles.forEach(role => {
-                const option = document.createElement('option');
-                option.value = role.id;
-                option.textContent = role.name;
-                userRoleSelect.appendChild(option);
-            });
-            console.log('[Frontend Debug] Rollenoptionen gerendert.'); 
+                const select = document.getElementById('userRole');
+                select.innerHTML = allRoles.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+            } catch (e) { console.error(e); }
         }
 
         function renderUserList() {
-            if (allUsers.length === 0) {
-                userListContainer.innerHTML = '<p class="text-center text-gray-500 py-4">Keine Benutzer gefunden.</p>';
-                return;
-            }
-
-            let tableHtml = `
-                <table class="min-w-full bg-white border-collapse shadow-sm rounded-lg">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Name</th>
-                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">PIN</th>
-                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Rolle</th>
-                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Status (Auth)</th>
-                            <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 border-b">Aktionen</th>
+            const container = document.getElementById('user-list-container');
+            let html = `
+                <table class="min-w-full bg-white border-collapse shadow-lg rounded-xl overflow-hidden">
+                    <thead>
+                        <tr class="bg-gray-800 text-white">
+                            <th class="p-4 text-left text-xs font-bold uppercase tracking-wider">Mitarbeiter & Schichten</th>
+                            <th class="p-4 text-left text-xs font-bold uppercase tracking-wider text-center">PIN-Badge</th>
+                            <th class="p-4 text-left text-xs font-bold uppercase tracking-wider">Rolle</th>
+                            <th class="p-4 text-left text-xs font-bold uppercase tracking-wider">Verwaltung</th>
                         </tr>
                     </thead>
-                    <tbody>
-            `;
-
-            allUsers.forEach(user => {
-                tableHtml += `
-                    <tr class="hover:bg-gray-50">
-                        <td class="py-2 px-4 border-b text-sm text-gray-800">
-                            <a href="/admin/user-shifts/${user.id}" class="text-blue-600 hover:text-blue-800 font-medium">
-                                ${user.full_name || '-'}
+                    <tbody class="divide-y divide-gray-200">`;
+            allUsers.forEach(u => {
+                html += `
+                    <tr class="hover:bg-blue-50 transition-colors">
+                        <td class="p-4">
+                            <a href="/admin/user-shifts/${u.id}" class="text-blue-600 hover:text-blue-900 font-black text-lg flex items-center group">
+                                <div class="bg-blue-100 p-2 rounded-lg mr-3 group-hover:bg-blue-200 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <span>${u.full_name || u.username}</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                </svg>
                             </a>
                         </td>
-                        <td class="py-2 px-4 border-b text-sm text-blue-600 clickable-cell font-medium" onclick="openBarcodeModal('${user.pin}', '${user.full_name}')">${user.pin}</td>
-                        <td class="py-2 px-4 border-b text-sm text-gray-800">${user.role_name || '-'}</td>
-                        <td class="py-2 px-4 border-b text-sm text-gray-800">${user.isActive ? 'Aktiv' : 'Inaktiv'}</td>
-                        <td class="py-2 px-4 border-b text-sm">
-                            <button onclick="openEditUserModal(${user.id})" class="text-blue-600 hover:text-blue-800 font-medium mr-2">Bearbeiten</button>
-                            <button onclick="openVpnModal(${user.id}, '${user.full_name}')" class="text-green-600 hover:text-green-800 font-medium mr-2">VPN</button>
-                            <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-800 font-medium">Löschen</button>
+                        <td class="p-4 text-center">
+                            <button onclick="openBarcodeModal('${u.pin}', '${u.full_name}')" class="font-mono bg-white border-2 border-blue-200 px-3 py-1 rounded-full text-blue-700 hover:bg-blue-600 hover:text-white transition-all font-bold shadow-sm">
+                                ${u.pin}
+                            </button>
                         </td>
-                    </tr>
-                `;
+                        <td class="p-4 text-sm font-medium text-gray-600">${u.role_name}</td>
+                        <td class="p-4">
+                            <div class="flex items-center space-x-4">
+                                <button onclick="openEditUserModal(${u.id})" class="flex items-center text-indigo-600 hover:text-indigo-900 font-bold uppercase text-xs tracking-tighter">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                    Edit
+                                </button>
+                                <button onclick="openVpnModal(${u.id}, '${u.full_name}')" class="flex items-center text-green-600 hover:text-green-900 font-bold uppercase text-xs tracking-tighter">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                    VPN
+                                </button>
+                                <button onclick="deleteUser(${u.id})" class="text-red-500 hover:text-red-700 font-bold uppercase text-xs tracking-tighter">
+                                    Löschen
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
             });
-
-            tableHtml += `
-                    </tbody>
-                </table>
-            `;
-            userListContainer.innerHTML = tableHtml;
+            container.innerHTML = html + '</tbody></table>';
         }
 
         function getAuthHeader() {
-            const jwtCookie = document.cookie.split('; ').find(row => row.startsWith('jwt='));
-            if (jwtCookie) {
-                const token = jwtCookie.split('=')[1];
-                return { 'Authorization': `Bearer ${token}` };
-            }
-            return {};
+            const token = document.cookie.split('; ').find(row => row.startsWith('jwt='))?.split('=')[1];
+            return token ? { 'Authorization': `Bearer ${token}` } : {};
         }
 
         async function openVpnModal(userId, fullName) {
             currentVpnUserName = fullName;
-            vpnPreview.textContent = "Lade Konfiguration...";
-            vpnModal.style.display = 'flex';
-
+            const preview = document.getElementById('vpn-config-preview');
+            const qrContainer = document.getElementById('vpn-qrcode-container');
+            const modal = document.getElementById('vpn-modal');
+            preview.textContent = "Lade Konfiguration..."; qrContainer.innerHTML = ""; modal.style.display = 'flex';
             try {
-                const response = await fetch(`/api/vpn/clients/user/${userId}/config`, {
-                    headers: getAuthHeader()
-                });
-                if (!response.ok) throw new Error('Kein VPN Profil gefunden.');
-                
-                currentVpnConfig = await response.text();
-                vpnPreview.textContent = currentVpnConfig.substring(0, 100) + "...";
-                
-                QRCode.toCanvas(vpnQrCanvas, currentVpnConfig, { width: 256 }, function (error) {
-                    if (error) console.error(error);
-                });
-            } catch (err) {
-                vpnPreview.textContent = err.message;
-            }
+                const r = await fetch(`/api/vpn/clients/user/${userId}/config`, { headers: getAuthHeader() });
+                if (!r.ok) throw new Error('Profil nicht gefunden.');
+                currentVpnConfig = await r.text();
+                preview.textContent = currentVpnConfig.substring(0, 150) + "...";
+                new QRCode(qrContainer, { text: currentVpnConfig, width: 256, height: 256 });
+            } catch (err) { preview.textContent = err.message; }
         }
 
-        function closeVpnModal() {
-            vpnModal.style.display = 'none';
-        }
-
+        function closeVpnModal() { document.getElementById('vpn-modal').style.display = 'none'; }
         function downloadVpnConfig() {
-            const blob = new Blob([currentVpnConfig], { type: 'text/plain' });
-            const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = `vpn_${currentVpnUserName.replace(/\s/g, '_')}.conf`;
-            a.click();
+            a.href = window.URL.createObjectURL(new Blob([currentVpnConfig], { type: 'text/plain' }));
+            a.download = `vpn_${currentVpnUserName.replace(/\s/g, '_')}.conf`; a.click();
         }
 
-        function openAddUserModal() {
-            formTitle.textContent = 'Neuen Benutzer erstellen';
-            userForm.reset();
-            currentEditingUserId = null;
+        function openBarcodeModal(pin, name) {
+            document.getElementById('barcode-modal-title').textContent = `ID-Badge: ${name}`;
+            document.getElementById('barcode-value').textContent = pin;
+            JsBarcode("#barcode-svg", pin, { format: "CODE128", width: 2.5, height: 100, displayValue: false, lineColor: "#1e40af" });
+            document.getElementById('barcode-modal').style.display = 'flex';
+        }
+        function closeBarcodeModal() { document.getElementById('barcode-modal').style.display = 'none'; }
 
-            // Auth Service Felder
-            userPinInput.value = ''; // PIN Feld leeren
-            userPinInput.readOnly = true; // PIN für neue Benutzer nicht bearbeitbar machen
-            passwordFieldGroup.classList.remove('hidden');
-            userPasswordInput.required = true;
-            confirmPasswordFieldGroup.classList.remove('hidden');
-            confirmPasswordInput.required = true;
-
-            // HR Service Felder - Für neue Benutzer alle Felder erforderlich
-            firstNameInput.required = true;
-            lastNameInput.required = true;
-            emailInput.required = true;
-            dateOfHireInput.required = true;
-
-            // Optional: Setze Standardwerte oder leere die neuen HR-Felder
-            genderSelect.value = '';
-            maritalStatusSelect.value = ''; // GEÄNDERT
-            nationalityInput.value = '';
-            dateOfBirthInput.value = '';
-            privatePhoneInput.value = '';
-            departmentInput.value = '';
-            workLocationInput.value = '';
-            workScheduleTypeSelect.value = ''; // GEÄNDERT
-            annualLeaveEntitlementInput.value = 0;
-            salaryInput.value = '';
-            employeeStatusSelect.value = 'active';
-
-            // Leere assoziierte Container
-            addressesContainer.innerHTML = '';
-            addAddressField(); // Mindestens ein leeres Adressfeld anzeigen
-
-            bankDetailsContainer.innerHTML = ''; 
-            addBankDetailsField(); // Mindestens ein leeres Bankdetails-Feld anzeigen
-
-            taxSocialSecurityContainer.innerHTML = ''; 
-            addTaxSocialSecurityField(); // Mindestens ein leeres Steuerfeld anzeigen
-
-            emergencyContactsContainer.innerHTML = '';
-            addEmergencyContactField(); // Mindestens ein leeres Notfallkontaktfeld anzeigen
-
-
-            userFormModal.style.display = 'flex';
-            renderRoleOptions();
+        // Dynamic Form Fields
+        function addAddressField(data = {}) {
+            const div = document.createElement('div');
+            div.className = 'associated-data-item mt-2';
+            div.innerHTML = `
+                <button type="button" class="remove-item-button" onclick="this.parentElement.remove()">×</button>
+                <input type="text" name="street" placeholder="Straße" value="${data.street || ''}" class="p-2 border rounded">
+                <input type="text" name="houseNumber" placeholder="Nr." value="${data.houseNumber || ''}" class="p-2 border rounded">
+                <input type="text" name="zipCode" placeholder="PLZ" value="${data.zipCode || ''}" class="p-2 border rounded">
+                <input type="text" name="city" placeholder="Stadt" value="${data.city || ''}" class="p-2 border rounded">
+            `;
+            document.getElementById('addresses-container').appendChild(div);
         }
 
-        function cancelUserForm() {
-            userFormModal.style.display = 'none';
+        function addBankDetailsField(data = {}) {
+            const container = document.getElementById('bankDetails-container');
+            container.innerHTML = `
+                <div class="associated-data-item">
+                    <input type="text" name="bankName" placeholder="Bankname" value="${data.bankName || ''}" class="p-2 border rounded">
+                    <input type="text" name="iban" placeholder="IBAN" value="${data.iban || ''}" class="p-2 border rounded">
+                    <input type="text" name="bic" placeholder="BIC" value="${data.bic || ''}" class="p-2 border rounded">
+                </div>`;
+        }
+
+        function addTaxSocialSecurityField(data = {}) {
+            const container = document.getElementById('taxSocialSecurity-container');
+            container.innerHTML = `
+                <div class="associated-data-item">
+                    <input type="text" name="taxIdNumber" placeholder="Steuer-ID" value="${data.taxIdNumber || ''}" class="p-2 border rounded">
+                    <input type="text" name="socialSecurityNumber" placeholder="SV-Nr" value="${data.socialSecurityNumber || ''}" class="p-2 border rounded">
+                    <input type="number" name="taxClass" placeholder="St-Klasse" value="${data.taxClass || ''}" class="p-2 border rounded">
+                </div>`;
         }
 
         async function openEditUserModal(userId) {
-            const userToEdit = allUsers.find(user => user.id === userId);
-            if (!userToEdit) {
-                alert('Benutzer nicht gefunden.');
-                return;
-            }
-
-            formTitle.textContent = `Benutzer bearbeiten: ${userToEdit.full_name || 'N/A'}`;
+            const u = allUsers.find(user => user.id === userId);
+            if (!u) return;
             currentEditingUserId = userId;
-            userForm.reset(); // Formular zurücksetzen
+            document.getElementById('form-title').textContent = `Daten bearbeiten: ${u.full_name}`;
+            document.getElementById('firstName').value = u.hr_data?.firstName || '';
+            document.getElementById('lastName').value = u.hr_data?.lastName || '';
+            document.getElementById('email').value = u.hr_data?.email || '';
+            document.getElementById('userPin').value = u.pin || '';
+            document.getElementById('userRole').value = u.role_id;
+            document.getElementById('dateOfHire').value = u.hr_data?.dateOfHire || '';
+            document.getElementById('department').value = u.hr_data?.department || '';
+            document.getElementById('salary').value = u.hr_data?.salary || '';
+            document.getElementById('targetHours').value = u.hr_data?.targetHoursMonthly || '';
+            document.getElementById('gender').value = u.hr_data?.gender || '';
+            document.getElementById('maritalStatus').value = u.hr_data?.maritalStatus || 'Ledig';
 
-            // Auth Service Felder
-            renderRoleOptions(); 
-            console.log('[Frontend Debug] userToEdit.role_id:', userToEdit.role_id); 
-            console.log('[Frontend Debug] userToEdit.role_name:', userToEdit.role_name); 
-            userRoleSelect.value = userToEdit.role_id; 
-            console.log('[Frontend Debug] userRoleSelect.value nach Zuweisung:', userRoleSelect.value); 
-            userPinInput.value = userToEdit.pin || ''; // PIN anzeigen
-            userPinInput.readOnly = false; // PIN für bestehende Benutzer bearbeitbar machen
-            passwordFieldGroup.classList.remove('hidden'); // Passwortfelder anzeigen
-            userPasswordInput.required = false; // Passwort ist optional
-            confirmPasswordFieldGroup.classList.remove('hidden');
-            confirmPasswordInput.required = false;
-            userPasswordInput.value = ''; // Felder leeren
-            confirmPasswordInput.value = '';
-
-            // Haupt HR Service Felder
-            firstNameInput.value = userToEdit.hr_data?.firstName || '';
-            lastNameInput.value = userToEdit.hr_data?.lastName || '';
-            emailInput.value = userToEdit.hr_data?.email || '';
-            genderSelect.value = userToEdit.hr_data?.gender || '';
-            maritalStatusSelect.value = userToEdit.hr_data?.maritalStatus || ''; // GEÄNDERT
-            nationalityInput.value = userToEdit.hr_data?.nationality || '';
-            dateOfBirthInput.value = userToEdit.hr_data?.dateOfBirth || '';
-            privatePhoneInput.value = userToEdit.hr_data?.privatePhone || '';
-            dateOfHireInput.value = userToEdit.hr_data?.dateOfHire || '';
-            departmentInput.value = userToEdit.hr_data?.department || '';
-            workLocationInput.value = userToEdit.hr_data?.workLocation || '';
-            workScheduleTypeSelect.value = userToEdit.hr_data?.workScheduleType || ''; // GEÄNDERT
-            annualLeaveEntitlementInput.value = userToEdit.hr_data?.annualLeaveEntitlement || 0;
-            salaryInput.value = userToEdit.hr_data?.salary || '';
-            employeeStatusSelect.value = userToEdit.hr_data?.status || 'active';
-
-            // Assoziierte Daten füllen
-            addressesContainer.innerHTML = '';
-            if (userToEdit.hr_data?.addresses && userToEdit.hr_data.addresses.length > 0) {
-                userToEdit.hr_data.addresses.forEach(address => addAddressField(address));
-            } else {
-                addAddressField(); // Mindestens ein leeres Adressfeld anzeigen
-            }
-
-            bankDetailsContainer.innerHTML = '';
-            if (userToEdit.hr_data?.bankDetails) {
-                addBankDetailsField(userToEdit.hr_data.bankDetails);
-            } else {
-                addBankDetailsField(); // Mindestens ein leeres Bankdetails-Feld anzeigen
-            }
-
-            taxSocialSecurityContainer.innerHTML = '';
-            if (userToEdit.hr_data?.taxSocialSecurity) {
-                addTaxSocialSecurityField(userToEdit.hr_data.taxSocialSecurity);
-            } else {
-                addTaxSocialSecurityField(); // Mindestens ein leeres Steuerfeld anzeigen
-            }
-
-            emergencyContactsContainer.innerHTML = '';
-            if (userToEdit.hr_data?.emergencyContacts && userToEdit.hr_data.emergencyContacts.length > 0) {
-                userToEdit.hr_data.emergencyContacts.forEach(contact => addEmergencyContactField(contact));
-            } else {
-                addEmergencyContactField(); // Mindestens ein leeres Notfallkontaktfeld anzeigen
-            }
-
-
-            // Bei Bearbeitung sind diese Felder nicht zwingend, da sie bereits existieren könnten
-            firstNameInput.required = false;
-            lastNameInput.required = false;
-            emailInput.required = false;
-            dateOfHireInput.required = false;
-
-            userFormModal.style.display = 'flex';
-        }
-
-        cancelUserFormButton.addEventListener('click', cancelUserForm);
-
-        // HILFSFUNKTIONEN FÜR DYNAMISCHE FELDER
-        function addAddressField(address = {}) {
-            const index = addressesContainer.children.length;
-            const addressItem = document.createElement('div');
-            addressItem.className = 'associated-data-item';
-            addressItem.innerHTML = `
-                <span class="remove-item-button" onclick="removeAddressField(this)">×</span>
-                <input type="hidden" name="addresses[${index}][id]" value="${address.id || ''}">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Adresstyp</label>
-                    <select name="addresses[${index}][addressType]" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                        <option value="">Bitte auswählen</option>
-                        <option value="privat" ${address.addressType === 'privat' ? 'selected' : ''}>Privat</option>
-                        <option value="dienstlich" ${address.addressType === 'dienstlich' ? 'selected' : ''}>Dienstlich</option>
-                        <option value="rechnung" ${address.addressType === 'rechnung' ? 'selected' : ''}>Rechnung</option>
-                        <option value="versand" ${address.addressType === 'versand' ? 'selected' : ''}>Versand</option>
-                        <option value="andere" ${address.addressType === 'andere' ? 'selected' : ''}>Andere</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Straße</label>
-                    <input type="text" name="addresses[${index}][street]" value="${address.street || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Hausnummer</label>
-                    <input type="text" name="addresses[${index}][houseNumber]" value="${address.houseNumber || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">PLZ</label>
-                    <input type="text" name="addresses[${index}][zipCode]" value="${address.zipCode || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Stadt</label>
-                    <input type="text" name="addresses[${index}][city]" value="${address.city || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Land</label>
-                    <input type="text" name="addresses[${index}][country]" value="${address.country || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div class="flex items-center full-width">
-                    <input type="checkbox" name="addresses[${index}][isPrimary]" ${address.isPrimary ? 'checked' : ''} class="h-4 w-4 text-blue-600 border-gray-300 rounded">
-                    <label class="ml-2 block text-sm text-gray-900">Primäre Adresse</label>
-                </div>
-            `;
-            addressesContainer.appendChild(addressItem);
-        }
-
-        function removeAddressField(button) {
-            button.closest('.associated-data-item').remove();
-        }
-
-        function addBankDetailsField(bankDetails = {}) {
-            // Wenn bereits Bankdetails vorhanden sind und keine ID übergeben wird (also kein Bearbeitungsfall), nicht hinzufügen
-            if (bankDetailsContainer.children.length > 0 && !bankDetails.id) {
-                return;
-            }
-            const bankDetailsItem = document.createElement('div');
-            bankDetailsItem.className = 'associated-data-item';
-            bankDetailsItem.innerHTML = `
-                <span class="remove-item-button" onclick="removeBankDetailsField(this)">×</span>
-                <input type="hidden" name="bankDetails[id]" value="${bankDetails.id || ''}">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Bankname</label>
-                    <input type="text" name="bankDetails[bankName]" value="${bankDetails.bankName || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">IBAN</label>
-                    <input type="text" name="bankDetails[iban]" value="${bankDetails.iban || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div class="full-width">
-                    <label class="block text-sm font-medium text-gray-700">BIC</label>
-                    <input type="text" name="bankDetails[bic]" value="${bankDetails.bic || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-            `;
-            bankDetailsContainer.innerHTML = ''; // Entferne bestehende Felder, um nur eines zu haben
-            bankDetailsContainer.appendChild(bankDetailsItem);
-        }
-
-        function removeBankDetailsField(button) {
-            button.closest('.associated-data-item').remove();
-            // Wenn keine Bankdetails mehr vorhanden sind, füge ein leeres Feld hinzu, um die Option zu behalten
-            if (bankDetailsContainer.children.length === 0) {
-                addBankDetailsField();
-            }
-        }
-
-        function addTaxSocialSecurityField(taxSocialSecurity = {}) {
-            // Wenn bereits Steuerdetails vorhanden sind und keine ID übergeben wird, nicht hinzufügen
-            if (taxSocialSecurityContainer.children.length > 0 && !taxSocialSecurity.id) {
-                return;
-            }
-            const taxSocialSecurityItem = document.createElement('div');
-            taxSocialSecurityItem.className = 'associated-data-item';
-            taxSocialSecurityItem.innerHTML = `
-                <span class="remove-item-button" onclick="removeTaxSocialSecurityField(this)">×</span>
-                <input type="hidden" name="taxSocialSecurity[id]" value="${taxSocialSecurity.id || ''}">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Steuer-ID</label>
-                    <input type="text" name="taxSocialSecurity[taxIdNumber]" value="${taxSocialSecurity.taxIdNumber || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" pattern="[0-9]{11}" title="Steuer-ID muss 11 Ziffern enthalten">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Sozialversicherungs-Nr.</label>
-                    <input type="text" name="taxSocialSecurity[socialSecurityNumber]" value="${taxSocialSecurity.socialSecurityNumber || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Steuerklasse</label>
-                    <input type="number" name="taxSocialSecurity[taxClass]" value="${taxSocialSecurity.taxClass || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Kinderfreibeträge</label>
-                    <input type="number" step="0.1" name="taxSocialSecurity[childAllowances]" value="${taxSocialSecurity.childAllowances || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Religion</label>
-                    <input type="text" name="taxSocialSecurity[religion]" value="${taxSocialSecurity.religion || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Zusätzliche Freibeträge</label>
-                    <input type="number" step="0.01" name="taxSocialSecurity[additionalTaxAllowances]" value="${taxSocialSecurity.additionalTaxAllowances || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div class="flex items-center full-width">
-                    <input type="checkbox" name="taxSocialSecurity[churchTaxApplicable]" ${taxSocialSecurity.churchTaxApplicable ? 'checked' : ''} class="h-4 w-4 text-blue-600 border-gray-300 rounded">
-                    <label class="ml-2 block text-sm text-gray-900">Kirchensteuerpflichtig</label>
-                </div>
-            `;
-            taxSocialSecurityContainer.innerHTML = ''; // Entferne bestehende Felder, um nur eines zu haben
-            taxSocialSecurityContainer.appendChild(taxSocialSecurityItem);
-        }
-
-        function removeTaxSocialSecurityField(button) {
-            button.closest('.associated-data-item').remove();
-            if (taxSocialSecurityContainer.children.length === 0) {
-                addTaxSocialSecurityField();
-            }
-        }
-
-        function addEmergencyContactField(contact = {}) {
-            const index = emergencyContactsContainer.children.length;
-            const contactItem = document.createElement('div');
-            contactItem.className = 'associated-data-item';
-            contactItem.innerHTML = `
-                <span class="remove-item-button" onclick="removeEmergencyContactField(this)">×</span>
-                <input type="hidden" name="emergencyContacts[${index}][id]" value="${contact.id || ''}">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Vollständiger Name</label>
-                    <input type="text" name="emergencyContacts[${index}][fullName]" value="${contact.fullName || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Beziehung</label>
-                    <input type="text" name="emergencyContacts[${index}][relationship]" value="${contact.relationship || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Telefonnummer</label>
-                    <input type="text" name="emergencyContacts[${index}][phoneNumber]" value="${contact.phoneNumber || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">E-Mail</label>
-                    <input type="email" name="emergencyContacts[${index}][email]" value="${contact.email || ''}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
-                </div>
-            `;
-            emergencyContactsContainer.appendChild(contactItem);
-        }
-
-        function removeEmergencyContactField(button) {
-            button.closest('.associated-data-item').remove();
-        }
-
-        // Funktion zum Sammeln aller Formular-Daten
-        function collectFormData() {
-            const formData = new FormData(userForm);
-            const data = {};
-            for (let [key, value] of formData.entries()) {
-                // Handle nested arrays like addresses[0][street]
-                const match = key.match(/^(\w+)\[(\d+)\]\[(\w+)\]$/);
-                if (match) {
-                    const [, parent, index, childKey] = match;
-                    if (!data[parent]) {
-                        data[parent] = [];
-                    }
-                    if (!data[parent][index]) {
-                        data[parent][index] = {};
-                    }
-                    if (value === 'on' && formData.get(key) !== null) { // Handle checkboxes, only if checked
-                         data[parent][index][childKey] = true;
-                    } else if (formData.get(key) === null && key.endsWith('[isPrimary]')) { // Handle unchecked checkboxes
-                         data[parent][index][childKey] = false;
-                    } else {
-                        data[parent][index][childKey] = value;
-                    }
-                } else if (key.match(/^(\w+)\[(\w+)\]$/)) { // Handle nested objects like bankDetails[bankName]
-                    const [, parent, childKey] = key.match(/^(\w+)\[(\w+)\]$/);
-                    if (!data[parent]) {
-                        data[parent] = {};
-                    }
-                    if (value === 'on' && formData.get(key) !== null) { // Handle checkboxes
-                         data[parent][childKey] = true;
-                    } else if (formData.get(key) === null && key.endsWith('[churchTaxApplicable]')) {
-                         data[parent][childKey] = false;
-                    } else {
-                        data[parent][childKey] = value;
-                    }
-                } else if (key === 'salary' || key === 'annualLeaveEntitlement' || key === 'taxClass' || key === 'childAllowances' || key === 'additionalTaxAllowances') {
-                    data[key] = value ? parseFloat(value) : null;
-                } else if (key === 'churchTaxApplicable') {
-                    data[key] = value === 'on'; // Checkboxen als Boolean behandeln, falls nicht als nested Object gesendet
-                } else if (key !== 'confirmPassword') { // confirmPassword nicht senden
-                    data[key] = value;
-                }
-            }
-
-            // Manuelle Behandlung für Checkboxen, die nicht als Teil eines assoziierten Objekts gesendet wurden,
-            // wenn sie unchecked sind (FormData sendet nur checked values).
-            // Dies ist jetzt durch die Logik im match-Block besser abgedeckt, aber zur Sicherheit:
-            if (data.taxSocialSecurity && formData.get('taxSocialSecurity[churchTaxApplicable]') === null) {
-                data.taxSocialSecurity.churchTaxApplicable = false;
-            }
-
-
-            // Filtern von leeren assoziierten Objekten/Arrays, damit sie nicht unnötig gesendet werden
-            if (data.bankDetails && Object.values(data.bankDetails).every(x => !x || x === '')) {
-                delete data.bankDetails;
-            } else if (data.bankDetails && data.bankDetails.id === '') { // Wenn nur ID leer ist
-                delete data.bankDetails.id;
-            }
-
-            if (data.taxSocialSecurity && Object.values(data.taxSocialSecurity).every(x => !x || x === '')) {
-                delete data.taxSocialSecurity;
-            } else if (data.taxSocialSecurity && data.taxSocialSecurity.id === '') { // Wenn nur ID leer ist
-                delete data.taxSocialSecurity.id;
-            }
-
-            if (data.addresses) {
-                data.addresses = data.addresses.filter(addr => Object.values(addr).some(x => x !== null && x !== '' && x !== false));
-                data.addresses.forEach(addr => {
-                    if (addr.id === '') delete addr.id;
-                });
-            } else {
-                data.addresses = [];
-            }
+            document.getElementById('addresses-container').innerHTML = '';
+            if (u.hr_data?.addresses?.length) u.hr_data.addresses.forEach(a => addAddressField(a));
+            else addAddressField();
             
-            if (data.emergencyContacts) {
-                data.emergencyContacts = data.emergencyContacts.filter(contact => Object.values(contact).some(x => x !== null && x !== '' && x !== false));
-                data.emergencyContacts.forEach(contact => {
-                    if (contact.id === '') delete contact.id;
-                });
-            } else {
-                data.emergencyContacts = [];
-            }
-
-            return data;
+            addBankDetailsField(u.hr_data?.bankDetails || {});
+            addTaxSocialSecurityField(u.hr_data?.taxSocialSecurity || {});
+            document.getElementById('user-form-modal').style.display = 'flex';
         }
 
+        function cancelUserForm() { document.getElementById('user-form-modal').style.display = 'none'; }
 
-        userForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            
-            const formData = collectFormData(); // Alle Daten aus dem Formular sammeln
-
-            // Auth Service Daten
-            const pin = formData.pin;
-            const password = formData.password;
-            const confirmPassword = formData.confirmPassword; // Wird nicht an API gesendet
-            const roleId = parseInt(formData.roleId);
-            
-            // HR Service Daten
-            const firstName = formData.firstName;
-            const lastName = formData.lastName;
-            const email = formData.email;
-            const gender = formData.gender;
-            const maritalStatus = formData.maritalStatus;
-            const nationality = formData.nationality;
-            const dateOfBirth = formData.dateOfBirth;
-            const privatePhone = formData.privatePhone;
-            const dateOfHire = formData.dateOfHire;
-            const department = formData.department;
-            const workLocation = formData.workLocation;
-            const workScheduleType = formData.workScheduleType;
-            const annualLeaveEntitlement = formData.annualLeaveEntitlement;
-            const salary = formData.salary;
-            const employeeStatus = formData.status;
-
-            // Assoziierte HR Daten
-            const addresses = formData.addresses;
-            const bankDetails = formData.bankDetails;
-            const taxSocialSecurity = formData.taxSocialSecurity;
-            const emergencyContacts = formData.emergencyContacts;
-            
-            // NEU: isActive wird basierend auf employeeStatus abgeleitet
-            const isActiveDerived = (employeeStatus !== 'inactive' && employeeStatus !== 'terminated');
-
-
-            // Allgemeine Validierungen für neue Benutzer
-            if (currentEditingUserId === null) {
-                if (!firstName || !lastName || !email || !dateOfHire) {
-                    alert('Bitte füllen Sie alle erforderlichen HR-Felder aus.');
-                    return;
-                }
-                if (!password || password.length < 6) {
-                    alert('Passwort muss mindestens 6 Zeichen lang sein.');
-                    return;
-                }
-                if (password !== confirmPassword) {
-                    alert('Passwörter stimmen nicht überein.');
-                    return;
-                }
-                // PIN Validierung nur beim Erstellen (generierte PIN)
-                if (pin && !/^[0-9]{6,10}$/.test(pin)) {
-                    alert('PIN muss 6 bis 10 Ziffern enthalten.');
-                    return;
-                }
-            } else { // Validierungen für bestehende Benutzer
-                 // Nur wenn Passwortfelder ausgefüllt, prüfen
-                if (password && password.length > 0) {
-                    if (password.length < 6) {
-                        alert('Passwort muss mindestens 6 Zeichen lang sein.');
-                        return;
-                    }
-                    if (password !== confirmPassword) {
-                        alert('Passwörter stimmen nicht überein.');
-                        return;
-                    }
-                }
-                // Validierung für PIN, wenn sie geändert wurde
-                if (pin && pin !== allUsers.find(u => u.id === currentEditingUserId)?.pin) {
-                    if (!/^[0-9]{6,10}$/.test(pin)) {
-                        alert('PIN muss 6 bis 10 Ziffern enthalten.');
-                        return;
-                    }
-                }
+        async function deleteUser(id) {
+            if (confirm('Soll der Mitarbeiter wirklich unwiderruflich gelöscht werden?')) {
+                const r = await fetch(`/api/users/${id}`, { method: 'DELETE', headers: getAuthHeader() });
+                if (r.ok) fetchUsers();
             }
+        }
 
-            try {
-                let response;
-                const requestBody = { 
-                    role_id: roleId, 
-                    isActive: isActiveDerived, 
-                    pin: pin,
-                    firstName: firstName, 
-                    lastName: lastName,
-                    email: email,
-                    gender: gender,
-                    maritalStatus: maritalStatus,
-                    nationality: nationality,
-                    dateOfBirth: dateOfBirth,
-                    privatePhone: privatePhone,
-                    dateOfHire: dateOfHire,
-                    department: department,
-                    workLocation: workLocation,
-                    workScheduleType: workScheduleType,
-                    annualLeaveEntitlement: annualLeaveEntitlement,
-                    salary: salary,
-                    status: employeeStatus,
-                    addresses: addresses,
-                    bankDetails: bankDetails,
-                    taxSocialSecurity: taxSocialSecurity,
-                    emergencyContacts: emergencyContacts
-                };
+        document.getElementById('user-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const r = Object.fromEntries(fd.entries());
+            const body = {
+                firstName: r.firstName, lastName: r.lastName, email: r.email,
+                role_id: parseInt(r.roleId), pin: r.pin,
+                gender: r.gender, maritalStatus: r.maritalStatus,
+                salary: parseFloat(r.salary), target_hours_monthly: parseFloat(r.target_hours_monthly),
+                dateOfHire: r.dateOfHire, department: r.department,
+                bankDetails: { bankName: r.bankName, iban: r.iban, bic: r.bic },
+                taxSocialSecurity: { taxIdNumber: r.taxIdNumber, socialSecurityNumber: r.socialSecurityNumber, taxClass: parseInt(r.taxClass) },
+                addresses: [{ street: r.street, houseNumber: r.houseNumber, zipCode: r.zipCode, city: r.city, isPrimary: true }]
+            };
+            if (r.password) body.password = r.password;
+            const method = currentEditingUserId ? 'PUT' : 'POST';
+            const url = currentEditingUserId ? `/api/users/${currentEditingUserId}` : '/api/users';
+            const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', ...getAuthHeader() }, body: JSON.stringify(body) });
+            if (res.ok) { cancelUserForm(); fetchUsers(); } else { alert('Speichern fehlgeschlagen.'); }
+        };
 
-                // Entferne leere oder irrelevante Felder, bevor sie gesendet werden
-                Object.keys(requestBody).forEach(key => {
-                    if (requestBody[key] === null || requestBody[key] === '' || 
-                        (Array.isArray(requestBody[key]) && requestBody[key].length === 0) ||
-                        (typeof requestBody[key] === 'object' && Object.keys(requestBody[key]).length === 0 && key !== 'bankDetails' && key !== 'taxSocialSecurity')) {
-                        delete requestBody[key];
-                    }
-                });
-                // Spezielle Behandlung für bankDetails und taxSocialSecurity wenn sie leer sind
-                if (requestBody.bankDetails && Object.values(requestBody.bankDetails).every(x => x === null || x === '' || x === undefined || (typeof x === 'boolean' && x === false))) {
-                     delete requestBody.bankDetails;
-                }
-                if (requestBody.taxSocialSecurity && Object.values(requestBody.taxSocialSecurity).every(x => x === null || x === '' || x === undefined || (typeof x === 'boolean' && x === false))) {
-                     delete requestBody.taxSocialSecurity;
-                }
-
-
-                if (currentEditingUserId) {
-                    // Bearbeiten eines bestehenden Benutzers
-                    response = await fetch(`/api/users/${currentEditingUserId}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-                        body: JSON.stringify(requestBody)
-                    });
-                    if (!response.ok) {
-                         const errorData = await response.json();
-                         throw new Error(errorData.message || 'Fehler beim Aktualisieren der Benutzerdetails.');
-                    }
-                    // Dann, wenn ein neues Passwort eingegeben wurde, das Passwort aktualisieren
-                    if (password && password.length >= 6) {
-                        response = await fetch(`/api/users/${currentEditingUserId}/password`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-                            body: JSON.stringify({ newPassword: password })
-                        });
-                        if (!response.ok) {
-                            const errorData = await response.json();
-                            throw new Error(errorData.message || 'Fehler beim Aktualisieren des Passworts.');
-                        }
-                    }
-
-                } else {
-                    // Neuen Benutzer erstellen (PIN wird vom Backend generiert, daher nicht im body)
-                    delete requestBody.pin; // PIN nicht anlegen, da sie generiert wird
-                    response = await fetch('/api/users', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-                        body: JSON.stringify(requestBody)
-                    });
-                    if (response.ok) {
-                        const responseData = await response.json();
-                        alert(`Benutzer erfolgreich erstellt! Generierte PIN: ${responseData.pin || 'Nicht verfügbar'}`);
-                    }
-                }
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Fehler bei der Operation.');
-                }
-
-                userFormModal.style.display = 'none';
-                await fetchUsers();
-            } catch (error) {
-                alert('Fehler: ' + error.message);
-                console.error('Fehler bei Benutzeroperation:', error);
-            }
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchRoles(); fetchUsers();
+            document.getElementById('add-user-button').onclick = () => {
+                currentEditingUserId = null; document.getElementById('user-form').reset();
+                document.getElementById('form-title').textContent = 'Neuen Mitarbeiter anlegen';
+                document.getElementById('user-form-modal').style.display = 'flex';
+                document.getElementById('addresses-container').innerHTML = ''; addAddressField();
+                addBankDetailsField(); addTaxSocialSecurityField();
+            };
+            window.onclick = (e) => {
+                if (e.target.className.includes('modal')) e.target.style.display = 'none';
+            };
         });
-
-        async function deleteUser(userId) {
-            if (!confirm('Sind Sie sicher, dass Sie diesen Benutzer löschen möchten?')) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/users/${userId}`, {
-                    method: 'DELETE',
-                    headers: { ...getAuthHeader() }
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Fehler beim Löschen des Benutzers.');
-                }
-
-                alert('Benutzer erfolgreich gelöscht!');
-                await fetchUsers();
-            } catch (error) {
-                alert('Fehler: ' + error.message);
-                console.error('Fehler beim Löschen des Benutzers:', error);
-            }
-        }
-
-        function openBarcodeModal(pin, userFullName) {
-            barcodeModalTitle.textContent = `Barcode für ${userFullName}`;
-            barcodeValueSpan.textContent = pin;
-
-            barcodeSvg.innerHTML = '';
-            JsBarcode("#barcode-svg", pin, {
-                format: "CODE128",
-                displayValue: true,
-                fontSize: 24,
-                width: 2,
-                height: 100,
-                margin: 10
-            });
-            barcodeModal.style.display = 'flex';
-        }
-
-        function closeBarcodeModal() {
-            barcodeModal.style.display = 'none';
-            barcodeSvg.innerHTML = '';
-            barcodeValueSpan.textContent = '';
-        }
-
-        window.openVpnModal = openVpnModal;
-        window.closeVpnModal = closeVpnModal;
-        window.downloadVpnConfig = downloadVpnConfig;
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (loggedInUser.roles && loggedInUser.roles.includes('Manager')) {
-                await fetchRoles();
-                await fetchUsers();
-            } else {
-                userListContainer.innerHTML = '<p class="text-center text-red-500 py-4">Sie haben keine Berechtigung, die Benutzerverwaltung zu sehen.</p>';
-                if (addUserButton) addUserButton.style.display = 'none';
-            }
-
-            if (addUserButton) {
-                addUserButton.addEventListener('click', openAddUserModal);
-            }
-
-            window.onclick = function(event) {
-                if (event.target === barcodeModal) {
-                    closeBarcodeModal();
-                }
-                if (event.target === userFormModal) {
-                    cancelUserForm();
-                }
-                if (event.target === vpnModal) {
-                    closeVpnModal();
-                }
-            }
-        });
-        window.openBarcodeModal = openBarcodeModal;
-        window.openEditUserModal = openEditUserModal;
-        window.deleteUser = deleteUser;
-        window.addAddressField = addAddressField; // Exponieren für onclick
-        window.removeAddressField = removeAddressField; // Exponieren für onclick
-        window.addBankDetailsField = addBankDetailsField; // Exponieren für onclick
-        window.removeBankDetailsField = removeBankDetailsField; // Exponieren für onclick
-        window.addTaxSocialSecurityField = addTaxSocialSecurityField; // Exponieren für onclick
-        window.removeTaxSocialSecurityField = removeTaxSocialSecurityField; // Exponieren für onclick
-        window.addEmergencyContactField = addEmergencyContactField; // Exponieren für onclick
-        window.removeEmergencyContactField = removeEmergencyContactField; // Exponieren für onclick
-
     </script>
 </body>
 </html>

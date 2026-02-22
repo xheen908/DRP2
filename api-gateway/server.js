@@ -109,8 +109,8 @@ app.use('/api/jobs', gatewayAuth, httpProxy(JOB_SERVICE_URL, { proxyReqOptDecora
 app.use('/api/shifts', gatewayAuth, httpProxy(SHIFT_SERVICE_URL, { proxyReqOptDecorator: setUserHeaders, proxyReqPathResolver: req => `/api/shifts${req.url}` }));
 app.use('/api/locations', gatewayAuth, httpProxy(LOCATION_SERVICE_URL, { proxyReqOptDecorator: setUserHeaders, proxyReqPathResolver: req => `/api/locations${req.url}` }));
 app.use('/api/clients', gatewayAuth, httpProxy(CLIENT_SERVICE_URL, { proxyReqOptDecorator: setUserHeaders, proxyReqPathResolver: req => req.url }));
-app.use('/api/hr', gatewayAuth, httpProxy(HR_SERVICE_URL, { proxyReqOptDecorator: setUserHeaders, proxyReqPathResolver: req => req.url }));
-app.use('/api/payroll', gatewayAuth, httpProxy(PAYROLL_SERVICE_URL, { proxyReqOptDecorator: setUserHeaders, proxyReqPathResolver: req => req.url }));
+app.use('/api/hr', gatewayAuth, httpProxy(HR_SERVICE_URL, { proxyReqOptDecorator: setUserHeaders, proxyReqPathResolver: req => `/api/hr${req.url}` }));
+app.use('/api/payroll', gatewayAuth, httpProxy(PAYROLL_SERVICE_URL, { proxyReqOptDecorator: setUserHeaders, proxyReqPathResolver: req => `/api/payroll${req.url}` }));
 
 // Files
 app.get('/api/files/download/:filename(*)', gatewayAuth, httpProxy(FILE_STORAGE_SERVICE_URL, {
